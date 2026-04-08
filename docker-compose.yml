@@ -1,0 +1,50 @@
+services:
+  llama-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        PR_NUMBER: "21343"
+        BUILD_JOBS: "6"
+        GH_TOKEN: ${GH_TOKEN:-}
+    ports:
+      - "${PORT:-8089}:${PORT:-8089}"
+    volumes:
+      - hf-cache:/root/.cache/huggingface
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    command:
+      - "-hf"
+      - "${MODEL:-ggml-org/gemma-4-E4B-it-GGUF:Q4_K_M}"
+      - "--jinja"
+      - "-c"
+      - "${CTX:-32768}"
+      - "--port"
+      - "${PORT:-8089}"
+      - "--host"
+      - "${HOST:-0.0.0.0}"
+      - "-ngl"
+      - "${NGLAYERS:-50}"
+      - "-ot"
+      - "${CPUMOE:-exps=CPU}"
+      - "-fa"
+      - "${FLASHATTN:-off}"
+      - "-b"
+      - "${BATCH:-256}"
+      - "-ub"
+      - "${UBATCH:-256}"
+      - "-t"
+      - "${THREADS:-6}"
+      - "--mlock"
+      - "--fit"
+      - "off"
+
+volumes:
+  hf-cache:
