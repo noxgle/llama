@@ -145,6 +145,9 @@ cmd_health() {
     echo ""
     echo -e "${BLUE}=== System RAM ===${NC}"
     ssh_exec "free -h | head -2"
+    echo ""
+    echo -e "${BLUE}=== Swap ===${NC}"
+    ssh_exec "free -h | grep -E 'Wymiana|Swap'"
 }
 
 cmd_ssh() {
