@@ -31,6 +31,10 @@ docker compose logs -f
 cp configs/gemma4.env .env
 docker compose up -d
 
+# Switch to Gemma 4 26B (MoE - partial offload)
+cp configs/gemma4-26b.env .env
+docker compose up -d
+
 # Switch to Gemma 3
 cp configs/gemma3.env .env
 docker compose up -d
@@ -40,7 +44,7 @@ cp configs/phi4.env .env
 docker compose up -d
 
 # Or use --env-file directly
-docker compose --env-file configs/gemma3.env up -d
+docker compose --env-file configs/gemma4-26b.env up -d
 ```
 
 ### Environment Variables
@@ -80,6 +84,13 @@ docker compose --env-file configs/gemma3.env up -d
 - Context: 32K
 - GPU layers: 50
 - VRAM: ~4.5GB
+
+### configs/gemma4-26b.env
+- Model: unsloth/gemma-4-26B-A4B-it-GGUF:Q4_K_M (MoE)
+- Context: 8K
+- GPU layers: 30 (partial offload)
+- VRAM: ~5GB / RAM: ~12GB
+- Uwagi: MoE model z chain-of-thinking
 
 ### configs/gemma3.env
 - Model: Gemma 3 4B IT Q4_K_M

@@ -46,6 +46,10 @@ services:
       - "--mlock"
       - "--fit"
       - "off"
+      - "-ctk"
+      - "${CACHE_TYPE_K:-f16}"
+      - "-ctv"
+      - "${CACHE_TYPE_V:-f16}"
 
 volumes:
   hf-cache:
