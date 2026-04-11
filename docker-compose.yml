@@ -50,6 +50,7 @@ services:
       - "${CACHE_TYPE_K:-f16}"
       - "-ctv"
       - "${CACHE_TYPE_V:-f16}"
+      - "--no-mmap"
 
 volumes:
   hf-cache:
