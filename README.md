@@ -28,23 +28,15 @@ docker compose logs -f
 
 ```bash
 # Use Gemma 4 (default)
-cp configs/gemma4.env .env
+cp configs/gemma4-e4b-q4-unsloth.env .env
 docker compose up -d
 
 # Switch to Gemma 4 26B (MoE - partial offload)
-cp configs/gemma4-26b.env .env
-docker compose up -d
-
-# Switch to Gemma 3
-cp configs/gemma3.env .env
-docker compose up -d
-
-# Switch to Phi-4
-cp configs/phi4.env .env
+cp configs/gemma4-26b-unsloth.env .env
 docker compose up -d
 
 # Or use --env-file directly
-docker compose --env-file configs/gemma4-26b.env up -d
+docker compose --env-file configs/gemma4-26b-unsloth.env up -d
 ```
 
 ### Environment Variables
@@ -79,30 +71,36 @@ docker compose --env-file configs/gemma4-26b.env up -d
 
 ## Available Configs
 
-### configs/gemma4.env
-- Model: Gemma 4 E4B IT Q4_K_M
+### configs/gemma4-e4b-q4-unsloth.env
+- Model: unsloth/gemma-4-E4B-it-GGUF:Q4_K_M
 - Context: 32K
 - GPU layers: 50
 - VRAM: ~4.5GB
 
-### configs/gemma4-26b.env
+### configs/gemma4-e4b-q5-unsloth.env
+- Model: unsloth/gemma-4-E4B-it-GGUF:Q5_K_M
+- Context: 64K
+- GPU layers: 42
+- VRAM: ~5GB
+
+### configs/gemma4-e4b-q6-unsloth.env
+- Model: unsloth/gemma-4-E4B-it-GGUF:Q6_K
+- Context: 64K
+- GPU layers: 15
+- VRAM: ~5.5GB
+
+### configs/gemma4-e4b-q8-unsloth.env
+- Model: unsloth/gemma-4-E4B-it-GGUF:Q8_K_M
+- Context: 64K
+- GPU layers: 30
+- VRAM: ~6GB
+
+### configs/gemma4-26b-unsloth.env
 - Model: unsloth/gemma-4-26B-A4B-it-GGUF:Q4_K_M (MoE)
-- Context: 8K
+- Context: 32K
 - GPU layers: 30 (partial offload)
 - VRAM: ~5GB / RAM: ~12GB
 - Uwagi: MoE model z chain-of-thinking
-
-### configs/gemma3.env
-- Model: Gemma 3 4B IT Q4_K_M
-- Context: 32K
-- GPU layers: 999 (all)
-- Flash Attention: on
-
-### configs/phi4.env
-- Model: Phi-4 Mini Q4_K_M
-- Context: 16K
-- GPU layers: 999 (all)
-- Flash Attention: on
 
 ## Troubleshooting
 

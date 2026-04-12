@@ -16,7 +16,7 @@ Docker Compose setup for llama.cpp with CUDA support, optimized for running LLM 
 docker compose up -d --build
 
 # Start with specific config
-docker compose --env-file configs/gemma4-e4b-q4.env up -d
+docker compose --env-file configs/gemma4-e4b-q4-unsloth.env up -d
 
 # Check status
 curl http://192.168.200.38:8089/health
@@ -33,12 +33,11 @@ docker compose up -d
 
 | Config | Model | Context | GPU Layers | VRAM |
 |--------|-------|---------|------------|------|
-| gemma4-e4b-q4.env | Gemma 4 E4B IT Q4_K_M | 32K | 50 | ~4.5GB |
-| gemma4-26b.env | Gemma 4 26B MoE Q4_K_M | 8K | 30 | ~5GB |
-| gemma3.env | Gemma 3 4B IT Q4_K_M | 32K | 999 | ~4GB |
-| phi4.env | Phi-4 Mini Q4_K_M | 16K | 999 | ~3GB |
-| gemma4-e4b-q5.env | Gemma 4 Q5_K_M | 32K | 50 | ~5GB |
-| gemma4-e4b-q8.env | Gemma 4 Q8_0 | 32K | 50 | ~6GB |
+| gemma4-e4b-q4-unsloth.env | Gemma 4 E4B IT Q4_K_M | 32K | 50 | ~4.5GB |
+| gemma4-e4b-q5-unsloth.env | Gemma 4 E4B IT Q5_K_M | 64K | 42 | ~5GB |
+| gemma4-e4b-q6-unsloth.env | Gemma 4 E4B IT Q6_K | 64K | 15 | ~5.5GB |
+| gemma4-e4b-q8-unsloth.env | Gemma 4 E4B IT Q8_K_M | 64K | 30 | ~6GB |
+| gemma4-26b-unsloth.env | Gemma 4 26B MoE Q4_K_M | 32K | 30 | ~5GB |
 
 ## Environment Variables
 
