@@ -102,6 +102,48 @@ docker compose --env-file configs/gemma4-26b-unsloth.env up -d
 - VRAM: ~5GB / RAM: ~12GB
 - Uwagi: MoE model z chain-of-thinking
 
+## OpenWebUI Configuration
+
+Konfiguracja dla OpenWebUI / Open AI:
+
+```json
+{
+  "llama": {
+    "npm": "@ai-sdk/openai-compatible",
+    "name": "llama.cpp (remote pve2)",
+    "options": {
+      "baseURL": "http://192.168.200.38:8089/v1",
+      "toolParser": [
+        { "type": "raw-function-call" },
+        { "type": "json" }
+      ]
+    },
+    "models": {
+      "gemma4:e4b": {
+        "name": "Gemma 4 E4B",
+        "tool_call": true,
+        "limit": {
+          "context": 65536,
+          "output": 8192
+        },
+        "modalities": {
+          "input": ["text","image"],
+          "output": ["text"]
+        }
+      },
+      "gemma4:26b": {
+        "name": "Gemma 4 26B",
+        "tool_call": true,
+        "limit": {
+          "context": 32768,
+          "output": 8192
+        }
+      }
+    }
+  }
+}
+```
+
 ## Sync Tool
 
 Użyj `sync.sh` do zarządzania serwerem zdalnym:
