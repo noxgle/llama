@@ -102,6 +102,45 @@ docker compose --env-file configs/gemma4-26b-unsloth.env up -d
 - VRAM: ~5GB / RAM: ~12GB
 - Uwagi: MoE model z chain-of-thinking
 
+## Sync Tool
+
+Użyj `sync.sh` do zarządzania serwerem zdalnym:
+
+```bash
+# Sync lokalne pliki -> serwer
+./sync.sh push
+
+# Sync + restart kontenera
+./sync.sh deploy
+
+# Sync + rebuild + restart
+./sync.sh rebuild
+
+# Zatrzymaj kontener
+./sync.sh stop
+
+# Uruchom kontener
+./sync.sh start
+
+# Restart kontenera
+./sync.sh restart
+
+# Status kontenera i GPU
+./sync.sh status
+
+# Sprawdź health
+./sync.sh health
+
+# Logi kontenera
+./sync.sh logs
+
+# SSH do serwera
+./sync.sh ssh
+
+# Pokaż aktualną konfigurację
+./sync.sh config
+```
+
 ## Troubleshooting
 
 ### Check GPU usage
