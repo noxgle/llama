@@ -6,7 +6,7 @@ Docker Compose setup for llama.cpp with CUDA support, optimized for running LLM 
 
 - **Hardware:** NVIDIA GTX 1060 6GB, 12GB RAM, 6 cores
 - **System:** Debian 13 (trixie) — remote server
-- **llama.cpp:** PR #21343 (built from GitHub pull request)
+- **llama.cpp:** PR #21343 + PR #20050 patch (KV cache retry fix)
 - **CUDA:** 12.4
 
 ## Tech Stack
@@ -59,6 +59,7 @@ llama/
     ├── gemma4-e4b-q5-bartowski.env
     ├── gemma4-e4b-q6-unsloth.env
     ├── gemma4-e4b-q6-bartowski.env
+    ├── gemma4-e4b-q6-bartowski-L.env
     ├── gemma4-e4b-q8-unsloth.env
     ├── gemma4-26b-unsloth.env
     └── test-gemma4.env
@@ -117,6 +118,8 @@ GH_TOKEN=xxx docker compose up -d --build
 | BUILD_JOBS | 6 | Parallel build jobs |
 | GH_TOKEN | (empty) | GitHub token for private PRs |
 
+**Note:** Dockerfile automatically applies PR #20050 patch (KV cache retry fix) on top of PR #21343.
+
 ## Run Instructions
 
 ### Starting the Server
@@ -161,15 +164,16 @@ ssh ag@192.168.200.38 "cd ~/llama && docker compose --env-file configs/gemma4-e4
 
 ### Available Configs (configs/)
 
-| File | Model | Context | Layers | VRAM |
-|------|-------|--------|--------|------|
-| gemma4-e4b-q4-unsloth.env | unsloth/gemma-4-E4B-it-GGUF:Q4_K_M | 32K | 50 | ~4.5GB |
-| gemma4-e4b-q5-unsloth.env | unsloth/gemma-4-E4B-it-GGUF:Q5_K_M | 64K | 42 | ~5GB |
-| gemma4-e4b-q6-unsloth.env | unsloth/gemma-4-E4B-it-GGUF:Q6_K | 64K | 15 | ~5.5GB |
-| gemma4-e4b-q8-unsloth.env | unsloth/gemma-4-E4B-it-GGUF:Q8_K_M | 64K | 30 | ~6GB |
-| gemma4-e4b-q5-bartowski.env | bartowski/google_gemma-4-E4B-it-GGUF:Q5_K_M | 64K | 42 | ~5.7GB |
-| gemma4-e4b-q6-bartowski.env | bartowski/google_gemma-4-E4B-it-GGUF:Q6_K | 64K | 42 | ~6.3GB |
-| gemma4-26b-unsloth.env | unsloth/gemma-4-26B-A4B-it-GGUF:Q4_K_M | 32K | 30 | ~5GB |
+| File | Model | Context | Layers | VRAM | Tokens/sec |
+|------|-------|--------|--------|------|------------|
+| gemma4-e4b-q4-unsloth.env | unsloth/gemma-4-E4B-it-GGUF:Q4_K_M | 32K | 50 | ~4.5GB | - |
+| gemma4-e4b-q5-unsloth.env | unsloth/gemma-4-E4B-it-GGUF:Q5_K_M | 64K | 42 | ~5GB | - |
+| gemma4-e4b-q6-unsloth.env | unsloth/gemma-4-E4B-it-GGUF:Q6_K | 64K | 15 | ~5.5GB | - |
+| gemma4-e4b-q8-unsloth.env | unsloth/gemma-4-E4B-it-GGUF:Q8_K_M | 64K | 30 | ~6GB | - |
+| gemma4-e4b-q5-bartowski.env | bartowski/google_gemma-4-E4B-it-GGUF:Q5_K_M | 64K | 42 | ~5.7GB | **~24** |
+| gemma4-e4b-q6-bartowski.env | bartowski/google_gemma-4-E4B-it-GGUF:Q6_K | 64K | 42 | ~6.3GB | ~22.7 |
+| gemma4-e4b-q6-bartowski-L.env | bartowski/google_gemma-4-E4B-it-GGUF:Q6_K_L | 64K | 25 | ~7.2GB | OOM (za dużo VRAM) |
+| gemma4-26b-unsloth.env | unsloth/gemma-4-26B-A4B-it-GGUF:Q4_K_M | 32K | 30 | ~5GB | - |
 
 ### Naming Convention
 
@@ -188,6 +192,8 @@ No code linting or formatting tools are used in this project. The project consis
 
 ## Testing Instructions
 
+### Basic Health Check
+
 No formal test suite exists. To verify the setup:
 
 ```bash
@@ -201,6 +207,66 @@ curl http://192.168.200.38:8089/v1/chat/completions \
     "messages": [{"role": "user", "content": "Hello!"}],
     "model": "gemma-4"
   }'
+```
+
+### Model Performance Testing
+
+To test model speed (tokens per second):
+
+#### 1. Deploy Configuration
+
+```bash
+# Sync and start with specific config
+cd /home/picon/workspace/llama
+./sync.sh push
+ssh ag@192.168.200.38 "cd ~/llama && docker compose --env-file configs/gemma4-e4b-q5-bartowski.env up -d"
+```
+
+#### 2. Wait for Model Load
+
+```bash
+# Check health - wait until "status": "ok"
+ssh ag@192.168.200.38 "curl -s http://localhost:8089/health"
+```
+
+#### 3. Run Performance Test
+
+```bash
+# Test generation speed (500 tokens)
+ssh ag@192.168.200.38 'curl -s http://localhost:8089/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d "{\"messages\": [{\"role\": \"user\", \"content\": \"Napisz krótką historię o smoku (około 500 znaków)\"}], \"model\": \"gemma-4\", \"max_tokens\": 500, \"temperature\": 0.7}"'
+```
+
+#### 4. Extract Metrics
+
+From the response JSON, extract:
+- `timings.predicted_ms` - generation time in ms
+- `timings.predicted_per_second` - tokens per second
+
+Or from server logs:
+```bash
+ssh ag@192.168.200.38 "docker logs llama-llama-server-1 --tail 10 | grep 'eval time'"
+```
+
+#### 5. Verify No KV Cache Errors
+
+```bash
+# Check for errors
+ssh ag@192.168.200.38 "docker logs llama-llama-server-1 --tail 20 | grep -iE 'kv|cache|batch|error|failed'"
+```
+
+### Expected Results (GTX 1060 6GB)
+
+| Config | Tokens/sec | Notes |
+|--------|------------|-------|
+| Q5_K_M | ~24 | Current best |
+| Q6_K | ~22.7 | Slightly slower |
+
+### VRAM Check
+
+```bash
+ssh ag@192.168.200.38 "nvidia-smi --query-gpu=memory.used,memory.total --format=csv"
 ```
 
 ## CI/CD

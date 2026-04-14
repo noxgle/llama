@@ -39,6 +39,10 @@ RUN if [ -n "$GH_TOKEN" ]; then \
         git checkout FETCH_HEAD; \
     fi
 
+# Apply PR #20050 patch (KV cache retry fix)
+RUN curl -sL https://github.com/ggml-org/llama.cpp/pull/20050.diff -o /tmp/20050.patch && \
+    git apply /tmp/20050.patch || echo "Patch may have conflicts or already applied"
+
 # Build llama-server with CUDA + curl support
 # Set up CUDA driver stub for linking (actual driver comes from host at runtime)
 RUN ln -sf /usr/local/cuda/lib64/stubs/libcuda.so /usr/local/cuda/lib64/stubs/libcuda.so.1 && \
