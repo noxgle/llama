@@ -27,7 +27,11 @@ docker compose logs -f
 ### Using .env files
 
 ```bash
-# Use Gemma 4 (default)
+# Use Gemma 4 E2B (DOMYŚLNY - najlepszy dla GTX 1060!)
+cp configs/gemma4-e2b-ud-q4-xl.env .env
+docker compose up -d
+
+# Use Gemma 4 (stary domyślny)
 cp configs/gemma4-e4b-q4-unsloth.env .env
 docker compose up -d
 
@@ -70,6 +74,14 @@ docker compose --env-file configs/gemma4-26b-unsloth.env up -d
 | `--fit off` | Disable auto-fit to VRAM |
 
 ## Available Configs
+
+### configs/gemma4-e2b-ud-q4-xl.env
+- Model: unsloth/gemma-4-E2B-it-GGUF:UD-Q4_K_XL
+- Context: 128K
+- GPU layers: 999 (all)
+- VRAM: ~3.2GB
+- **Tokens/sec: ~50** (TESTED)
+- Uwagi: **ULTRA KOMPAKTOWY** - najmniejszy model (2B), najwyższa jakość 4-bit, **REKORDOWA PRĘDKOŚĆ**
 
 ### configs/gemma4-e4b-q4-unsloth.env
 - Model: unsloth/gemma-4-E4B-it-GGUF:Q4_K_M
