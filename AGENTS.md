@@ -8,9 +8,9 @@
 docker compose up -d
 
 # Correct (two options):
-docker compose --env-file configs/gemma4-e2b-ud-q4-xl.env up -d
+docker compose --env-file configs/gemma4-e4b-ud-q4-xl.env up -d
 # OR
-cp configs/gemma4-e2b-ud-q4-xl.env .env && docker compose up -d
+cp configs/gemma4-e4b-ud-q4-xl.env .env && docker compose up -d
 ```
 
 The server has its own `.env` file at `~/llama/.env` on 192.168.200.38 that must be updated too.
@@ -20,7 +20,7 @@ The server has its own `.env` file at `~/llama/.env` on 192.168.200.38 that must
 ```bash
 # Sync and deploy
 ./sync.sh push
-ssh ag@192.168.200.38 "cd ~/llama && docker compose --env-file configs/gemma4-e2b-ud-q4-xl.env up -d"
+ssh ag@192.168.200.38 "cd ~/llama && docker compose --env-file configs/gemma4-e4b-ud-q4-xl.env up -d"
 
 # Health check
 curl http://192.168.200.38:8089/health
@@ -39,10 +39,10 @@ ssh ag@192.168.200.38 "nvidia-smi --query-gpu=memory.used --format=csv,noheader,
 
 | Config | Model | Tokens/sec | VRAM |
 |--------|-------|-----------|------|
-| gemma4-e2b-ud-q4-xl.env | unsloth/gemma-4-E2B-it-GGUF:UD-Q4_K_XL | **~50** | ~3.2GB |
-| gemma4-e4b-q5-bartowski.env | bartowski/google_gemma-4-E4B-it-GGUF:Q5_K_M | ~24 | ~5.7GB |
+| gemma4-e4b-ud-q4-xl.env | unsloth/gemma-4-E4B-it-GGUF:UD-Q4_K_XL | **~27** | ~5GB |
+| gemma4-e2b-ud-q4-xl.env | unsloth/gemma-4-E2B-it-GGUF:UD-Q4_K_XL | ~50 | ~3.2GB |
 
-E2B = 2B effective params (smaller model, faster, less VRAM).
+E4B = 4B params, E2B = 2B params (faster but less capable).
 
 ## Build Custom PR
 
