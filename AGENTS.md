@@ -41,6 +41,7 @@ ssh ag@192.168.200.38 "nvidia-smi --query-gpu=memory.used --format=csv,noheader,
 |--------|-------|-----------|------|
 | gemma4-e4b-ud-q4-xl.env | unsloth/gemma-4-E4B-it-GGUF:UD-Q4_K_XL | **~27** | ~5GB |
 | gemma4-e2b-ud-q4-xl.env | unsloth/gemma-4-E2B-it-GGUF:UD-Q4_K_XL | ~50 | ~3.2GB |
+| gemma4-26b-ud-iq2-xxs.env | unsloth/gemma-4-26B-A4B-it-GGUF:UD-IQ2_XXS | ~20 | ~5.2GB |
 
 E4B = 4B params, E2B = 2B params (faster but less capable).
 
