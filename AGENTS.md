@@ -1,77 +1,53 @@
-# AGENTS.md - Quick Reference
+# AGENTS.md
 
-## Critical Deployment Rule
+## Scope
+- Repository is a Dockerized `llama.cpp` server for a remote host: `ag@192.168.200.38`.
+- Main operational files: `docker-compose.yml`, `sync.sh`, `configs/*.env`.
 
-**Always use `--env-file` or copy config to `.env`:**
+## Critical deployment behavior (easy to get wrong)
+- `sync.sh` **does not sync `.env`** (`rsync` excludes it). Updating a config file alone does not change the active remote model.
+- For model/config switches, do one of these explicitly on remote:
+  - `cp ~/llama/configs/<config>.env ~/llama/.env && docker compose up -d`
+  - `docker compose --env-file configs/<config>.env up -d`
+- `docker compose up -d` without `--env-file` uses remote `~/llama/.env` (or compose defaults if missing).
+
+## Verified commands
 ```bash
-# Wrong (uses default from docker-compose.yml):
-docker compose up -d
-
-# Correct (two options):
-docker compose --env-file configs/gemma4-e4b-ud-q4-xl.env up -d
-# OR
-cp configs/gemma4-e4b-ud-q4-xl.env .env && docker compose up -d
-```
-
-The server has its own `.env` file at `~/llama/.env` on 192.168.200.38 that must be updated too.
-
-## Quick Commands
-
-```bash
-# Sync and deploy
+# Sync repo to remote
 ./sync.sh push
-ssh ag@192.168.200.38 "cd ~/llama && docker compose --env-file configs/gemma4-e4b-ud-q4-xl.env up -d"
+
+# Deploy specific config (recommended)
+ssh ag@192.168.200.38 "cd ~/llama && docker compose --env-file configs/gemma4-e2b-ud-q4-xl.env up -d"
+
+# Make config persistent default on remote
+ssh ag@192.168.200.38 "cp ~/llama/configs/gemma4-e2b-ud-q4-xl.env ~/llama/.env"
 
 # Health check
-curl http://192.168.200.38:8089/health
+ssh ag@192.168.200.38 "curl -s http://localhost:8089/health"
 
-# Performance test
+# Throughput test (read predicted_per_second)
 ssh ag@192.168.200.38 'curl -s http://localhost:8089/v1/chat/completions \
   -H "Content-Type: application/json" \
-  -d "{\"messages\": [{\"role\": \"user\", \"content\": \"Test\"}], \"model\": \"gemma-4\", \"max_tokens\": 500}"' \
-  | jq .timings.predicted_per_second
+  -d "{\"messages\":[{\"role\":\"user\",\"content\":\"Write ~500 chars of text.\"}],\"model\":\"gemma-4\",\"max_tokens\":500}"' \
+  | jq '.timings.predicted_per_second'
 
-# VRAM check
-ssh ag@192.168.200.38 "nvidia-smi --query-gpu=memory.used --format=csv,noheader,nounits"
+# VRAM and RAM checks
+ssh ag@192.168.200.38 "nvidia-smi --query-gpu=memory.used,memory.total --format=csv"
+ssh ag@192.168.200.38 "free -m"
 ```
 
-## Current Best Config
+## Current verified baselines
+- `configs/gemma4-e2b-ud-q4-xl.env` (BATCH/UBATCH=2048): ~50.8 tok/s, VRAM ~4.4 GB.
+- `configs/gemma4-e4b-ud-q4-xl.env`: ~27 tok/s, VRAM ~5.0 GB.
+- `configs/gemma4-26b-ud-iq2-xxs.env` (MoE partial offload): ~20 tok/s, VRAM ~5.2 GB.
 
-| Config | Model | Tokens/sec | VRAM |
-|--------|-------|-----------|------|
-| gemma4-e4b-ud-q4-xl.env | unsloth/gemma-4-E4B-it-GGUF:UD-Q4_K_XL | **~27** | ~5GB |
-| gemma4-e2b-ud-q4-xl.env | unsloth/gemma-4-E2B-it-GGUF:UD-Q4_K_XL | **~50.8** | ~4.4GB (BATCH=2048) |
-| gemma4-26b-ud-iq2-xxs.env | unsloth/gemma-4-26B-A4B-it-GGUF:UD-IQ2_XXS | ~20 | ~5.2GB |
+## Non-obvious config caveats
+- `docker-compose.yml` does **not** pass `THREADS_BATCH`, `PARALLEL`, `POLL` flags.
+  - These keys in `.env`/configs are currently ignored in normal runs.
+  - They are only wired in `docker-compose.test.yml`.
+- Compose defaults in `docker-compose.yml` are E4B-oriented (`MODEL`, `CTX=65536`, `NGLAYERS=40`, `BATCH=1024`).
 
-E4B = 4B params, E2B = 2B params (faster but less capable).
-
-## Latest Verified Test (500-char text)
-
-- Config: `gemma4-e2b-ud-q4-xl.env`
-- Result: `50.81 tokens/sec`
-- VRAM: `4385 MiB / 6144 MiB`
-- RAM host: `4158 MiB / 11966 MiB`
-- RAM container: `3.399 GiB / 11.69 GiB`
-
-## Build Custom PR
-
-```bash
-# Build from custom PR
-GH_TOKEN=ghp_xxx docker compose up -d --build
-
-# Use --build-arg for PR number
-docker build --build-arg PR_NUMBER=20050 .
-```
-
-## What NOT to Do
-
-1. **Never modify Dockerfile** without explicit user approval
-2. **Don't assume server has latest .env** — always sync AND copy to server's ~/llama/.env
-3. **Don't guess server is reachable** — ping first if network issues
-
-## Key Files
-
-- `configs/*.env` — Model configs (don't modify Dockerfile)
-- `configs/archive/*.env` — Legacy/test configs (reference only)
-- `sync.sh` — Server management
-- `docker-compose.yml` — Service definition
+## Modification constraints
+- Do not modify `Dockerfile` unless user explicitly asks.
+- Keep documentation/comments in English only.
+- Archive legacy test configs under `configs/archive/`; keep active runtime configs in `configs/`.

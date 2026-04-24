@@ -27,7 +27,7 @@ docker compose logs -f
 ### Using .env files
 
 ```bash
-# Use Gemma 4 E4B (DOMYŚLNY)
+# Use Gemma 4 E4B (DEFAULT)
 cp configs/gemma4-e4b-ud-q4-xl.env .env
 docker compose up -d
 
@@ -77,7 +77,7 @@ docker compose --env-file configs/gemma4-e4b-ud-q4-xl.env up -d
 - GPU layers: 40
 - VRAM: ~5GB
 - Tokens/sec: ~27 (TESTED)
-- Uwagi: **DOMYŚLNY** - Unsloth Dynamic 2.0
+- Notes: **DEFAULT** - Unsloth Dynamic 2.0
 
 ### configs/gemma4-e2b-ud-q4-xl.env
 - Model: unsloth/gemma-4-E2B-it-GGUF:UD-Q4_K_XL
@@ -85,33 +85,33 @@ docker compose --env-file configs/gemma4-e4b-ud-q4-xl.env up -d
 - GPU layers: 999 (all)
 - VRAM: ~3.2GB
 - Tokens/sec: ~50 (TESTED)
-- Uwagi: **ULTRA KOMPAKTOWY** - najszybszy model (~2x szybszy od E4B!)
+- Notes: **ULTRA COMPACT** - fastest model (~2x faster than E4B!)
 
 ### configs/gemma4-e4b-q4-unsloth.env (DEPRECATED)
 - Model: unsloth/gemma-4-E4B-it-GGUF:Q4_K_M
 - Context: 32K
 - GPU layers: 50
 - VRAM: ~4.5GB
-- Uwagi: Użyj zamiast tego gemma4-e4b-ud-q4-xl.env
+- Notes: Use `gemma4-e4b-ud-q4-xl.env` instead.
 
 ### configs/gemma4-26b-unsloth.env
 - Model: unsloth/gemma-4-26B-A4B-it-GGUF:Q4_K_M (MoE)
 - Context: 32K
 - GPU layers: 30 (partial offload)
 - VRAM: ~5GB / RAM: ~12GB
-- Uwagi: MoE model z chain-of-thinking
+- Notes: MoE model with chain-of-thinking.
 
-### Legacy / test configs (archiwum)
+### Legacy / test configs (archive)
 
-Pliki testowe zostały przeniesione do `configs/archive/`:
+Test configuration files were moved to `configs/archive/`:
 
-- `configs/archive/test-gemma4.env` (duplikat dawnego Q5 unsloth)
+- `configs/archive/test-gemma4.env` (duplicate of the former Q5 unsloth config)
 - `configs/archive/test-gemma4-tuned.env`
 - `configs/archive/test-gemma4-q6-tuned.env`
 
 ## OpenWebUI Configuration
 
-Konfiguracja dla OpenWebUI / Open AI:
+Configuration for OpenWebUI / OpenAI:
 
 ```json
 {
@@ -153,54 +153,54 @@ Konfiguracja dla OpenWebUI / Open AI:
 
 ## Sync Tool
 
-Użyj `sync.sh` do zarządzania serwerem zdalnym:
+Use `sync.sh` to manage the remote server:
 
 ```bash
-# Sync lokalne pliki -> serwer
+# Sync local files -> server
 ./sync.sh push
 
-# Sync + restart kontenera
+# Sync + container restart
 ./sync.sh deploy
 
 # Sync + rebuild + restart
 ./sync.sh rebuild
 
-# Zatrzymaj kontener
+# Stop container
 ./sync.sh stop
 
-# Uruchom kontener
+# Start container
 ./sync.sh start
 
-# Restart kontenera
+# Restart container
 ./sync.sh restart
 
-# Status kontenera i GPU
+# Container and GPU status
 ./sync.sh status
 
-# Sprawdź health
+# Check health
 ./sync.sh health
 
-# Logi kontenera
+# Container logs
 ./sync.sh logs
 
-# SSH do serwera
+# SSH to server
 ./sync.sh ssh
 
-# Pokaż aktualną konfigurację
+# Show current configuration
 ./sync.sh config
 ```
 
-## Testy wydajności (E2B UD-Q4_K_XL)
+## Performance test (E2B UD-Q4_K_XL)
 
-Ostatni test wykonany na serwerze zdalnym (`192.168.200.38`) dla generacji tekstu ~500 znaków:
+Latest test executed on the remote server (`192.168.200.38`) for ~500-character text generation:
 
 - Model: `unsloth/gemma-4-E2B-it-GGUF:UD-Q4_K_XL`
 - Wynik: **50.81 tokens/sec**
 - VRAM: **4385 MiB / 6144 MiB** (~71%)
 - RAM hosta: **4158 MiB / 11966 MiB** (~35%)
-- RAM kontenera: **3.399 GiB / 11.69 GiB**
+- Container RAM: **3.399 GiB / 11.69 GiB**
 
-Status: **OK** (health endpoint zwraca `ok`).
+Status: **OK** (health endpoint returns `ok`).
 
 ## Troubleshooting
 
