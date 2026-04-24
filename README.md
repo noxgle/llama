@@ -101,6 +101,14 @@ docker compose --env-file configs/gemma4-e4b-ud-q4-xl.env up -d
 - VRAM: ~5GB / RAM: ~12GB
 - Uwagi: MoE model z chain-of-thinking
 
+### Legacy / test configs (archiwum)
+
+Pliki testowe zostały przeniesione do `configs/archive/`:
+
+- `configs/archive/test-gemma4.env` (duplikat dawnego Q5 unsloth)
+- `configs/archive/test-gemma4-tuned.env`
+- `configs/archive/test-gemma4-q6-tuned.env`
+
 ## OpenWebUI Configuration
 
 Konfiguracja dla OpenWebUI / Open AI:

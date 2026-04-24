@@ -72,5 +72,6 @@ docker build --build-arg PR_NUMBER=20050 .
 ## Key Files
 
 - `configs/*.env` — Model configs (don't modify Dockerfile)
+- `configs/archive/*.env` — Legacy/test configs (reference only)
 - `sync.sh` — Server management
 - `docker-compose.yml` — Service definition
