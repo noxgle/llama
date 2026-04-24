@@ -182,6 +182,18 @@ Użyj `sync.sh` do zarządzania serwerem zdalnym:
 ./sync.sh config
 ```
 
+## Testy wydajności (E2B UD-Q4_K_XL)
+
+Ostatni test wykonany na serwerze zdalnym (`192.168.200.38`) dla generacji tekstu ~500 znaków:
+
+- Model: `unsloth/gemma-4-E2B-it-GGUF:UD-Q4_K_XL`
+- Wynik: **50.81 tokens/sec**
+- VRAM: **4385 MiB / 6144 MiB** (~71%)
+- RAM hosta: **4158 MiB / 11966 MiB** (~35%)
+- RAM kontenera: **3.399 GiB / 11.69 GiB**
+
+Status: **OK** (health endpoint zwraca `ok`).
+
 ## Troubleshooting
 
 ### Check GPU usage
