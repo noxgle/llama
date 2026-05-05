@@ -31,7 +31,7 @@ docker compose logs -f
 cp configs/gemma4-e4b-ud-q4-xl.env .env
 docker compose up -d
 
-# Use Gemma 4 E2B (szybszy, mniejszy VRAM)
+# Use Gemma 4 E2B (faster, lower VRAM)
 cp configs/gemma4-e2b-ud-q4-xl.env .env
 docker compose up -d
 
@@ -63,7 +63,7 @@ docker compose --env-file configs/gemma4-e4b-ud-q4-xl.env up -d
 | `-c` | Context size (tokens) |
 | `-ngl` | Layers offloaded to GPU |
 | `-ot exps=CPU` | Keep MoE experts in CPU (saves VRAM) |
-| `-fa` | Flash Attention (off for GTX 1060) |
+| `-fa` | Flash Attention |
 | `-b` / `-ub` | Batch sizes |
 | `-t` | CPU threads |
 | `--mlock` | Lock model in RAM |
@@ -75,17 +75,17 @@ docker compose --env-file configs/gemma4-e4b-ud-q4-xl.env up -d
 - Model: unsloth/gemma-4-E4B-it-GGUF:UD-Q4_K_XL
 - Context: 128K
 - GPU layers: 40
-- VRAM: ~5GB
-- Tokens/sec: ~27 (TESTED)
+- VRAM: ~5.7GB
+- Tokens/sec: ~23-24 (TESTED)
 - Notes: **DEFAULT** - Unsloth Dynamic 2.0
 
 ### configs/gemma4-e2b-ud-q4-xl.env
 - Model: unsloth/gemma-4-E2B-it-GGUF:UD-Q4_K_XL
 - Context: 128K
 - GPU layers: 999 (all)
-- VRAM: ~3.2GB
-- Tokens/sec: ~50 (TESTED)
-- Notes: **ULTRA COMPACT** - fastest model (~2x faster than E4B!)
+- VRAM: ~6.0GB (with `BATCH/UBATCH=2048`)
+- Tokens/sec: ~41-45 (TESTED)
+- Notes: **FASTEST** profile on this host, but lower output quality than E4B
 
 ### configs/gemma4-e4b-q4-unsloth.env (DEPRECATED)
 - Model: unsloth/gemma-4-E4B-it-GGUF:Q4_K_M
@@ -190,17 +190,33 @@ Use `sync.sh` to manage the remote server:
 ./sync.sh config
 ```
 
-## Performance test (E2B UD-Q4_K_XL)
+## Latest performance snapshots
 
-Latest test executed on the remote server (`192.168.200.38`) for ~500-character text generation:
+Tests executed on the remote server (`192.168.200.38`) for ~500-character text generation:
 
-- Model: `unsloth/gemma-4-E2B-it-GGUF:UD-Q4_K_XL`
-- Wynik: **50.81 tokens/sec**
-- VRAM: **4385 MiB / 6144 MiB** (~71%)
-- RAM hosta: **4158 MiB / 11966 MiB** (~35%)
-- Container RAM: **3.399 GiB / 11.69 GiB**
+- **Default profile (E4B UD-Q4_K_XL):**
+  - Throughput: **~23.24 tok/s**
+  - VRAM: **5779 MiB / 6144 MiB**
+  - Host RAM: **4510 MiB / 11966 MiB**
 
-Status: **OK** (health endpoint returns `ok`).
+- **Fast profile (E2B UD-Q4_K_XL):**
+  - Throughput: **~41-45 tok/s**
+  - VRAM: **~6045 MiB / 6144 MiB**
+  - Host RAM: **~4510 MiB / 11966 MiB**
+
+## Quality comparison summary (same prompts, deterministic settings)
+
+Compared models:
+- `unsloth/gemma-4-E4B-it-GGUF:UD-Q4_K_XL`
+- `unsloth/gemma-4-E2B-it-GGUF:UD-Q4_K_XL`
+- `bartowski/google_gemma-4-E4B-it-GGUF:Q4_K_M`
+
+Result:
+- **Best overall quality and stability:** `unsloth/gemma-4-E4B-it-GGUF:UD-Q4_K_XL`
+- **Fastest but less reliable quality:** `unsloth/gemma-4-E2B-it-GGUF:UD-Q4_K_XL`
+- **Good alternative:** `bartowski/google_gemma-4-E4B-it-GGUF:Q4_K_M`
+
+Status: **OK** (model endpoint ready and serving responses).
 
 ## Troubleshooting
 
@@ -238,6 +254,7 @@ curl http://192.168.200.38:8089/v1/chat/completions \
 
 ## Build Info
 
-- **llama.cpp:** PR #21343
+- **llama.cpp:** b9009 (`0754b7b`)
 - **CUDA:** 12.4
+- **Build flags:** `GGML_CUDA_NCCL=OFF` (single-GPU host, avoids `libnccl.so.2` runtime issue)
 - **Base image:** nvidia/cuda:12.4.0-devel-ubuntu22.04
