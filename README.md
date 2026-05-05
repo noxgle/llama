@@ -101,6 +101,30 @@ docker compose --env-file configs/gemma4-e4b-ud-q4-xl.env up -d
 - VRAM: ~5GB / RAM: ~12GB
 - Notes: MoE model with chain-of-thinking.
 
+### configs/qwen3.5-2b-instruct-speed.env
+- Model: bartowski/Qwen_Qwen3.5-2B-GGUF:Q4_K_M
+- Context: 64K
+- GPU layers: 999 (all)
+- Notes: Stability-first speed profile for 6GB VRAM hosts.
+
+### configs/qwen3.5-2b-instruct-quality.env
+- Model: bartowski/Qwen_Qwen3.5-2B-GGUF:Q5_K_M
+- Context: 64K
+- GPU layers: 999 (all)
+- Notes: Higher quality profile; keep VRAM under ~90% target.
+
+### configs/qwen3.5-4b-instruct-speed.env
+- Model: bartowski/Qwen_Qwen3.5-4B-GGUF:Q4_K_M
+- Context: 64K
+- GPU layers: 999 (all)
+- Notes: 4B speed profile with conservative batch values.
+
+### configs/qwen3.5-4b-instruct-quality.env
+- Model: bartowski/Qwen_Qwen3.5-4B-GGUF:Q5_K_M
+- Context: 64K
+- GPU layers: 999 (all)
+- Notes: 4B quality profile; reduce batch if VRAM exceeds 90%.
+
 ### Legacy / test configs (archive)
 
 Test configuration files were moved to `configs/archive/`:
@@ -190,21 +214,30 @@ Use `sync.sh` to manage the remote server:
 ./sync.sh config
 ```
 
-## Latest performance snapshots
+## Benchmark & quality test summary
 
-Tests executed on the remote server (`192.168.200.38`) for ~500-character text generation:
+All tests below were executed on the remote host (`192.168.200.38`, GTX 1060 6GB) via the OpenAI-compatible endpoint.
 
-- **Default profile (E4B UD-Q4_K_XL):**
-  - Throughput: **~23.24 tok/s**
-  - VRAM: **5779 MiB / 6144 MiB**
-  - Host RAM: **4510 MiB / 11966 MiB**
+### Throughput snapshots (~500-character generation)
 
-- **Fast profile (E2B UD-Q4_K_XL):**
-  - Throughput: **~41-45 tok/s**
-  - VRAM: **~6045 MiB / 6144 MiB**
-  - Host RAM: **~4510 MiB / 11966 MiB**
+| Profile | Model | Throughput (tok/s) | VRAM | Host RAM |
+|---|---|---:|---:|---:|
+| Gemma E4B default | `unsloth/gemma-4-E4B-it-GGUF:UD-Q4_K_XL` | ~23.24 | 5779 / 6144 MiB | 4510 / 11966 MiB |
+| Gemma E2B fast | `unsloth/gemma-4-E2B-it-GGUF:UD-Q4_K_XL` | ~41-45 | ~6045 / 6144 MiB | ~4510 / 11966 MiB |
 
-## Quality comparison summary (same prompts, deterministic settings)
+### Qwen 3.5 Instruct profile tests (stability target: <=90% VRAM)
+
+| Config | Model | Throughput (tok/s) | VRAM | Result |
+|---|---|---:|---:|---|
+| `qwen3.5-2b-instruct-speed.env` | `bartowski/Qwen_Qwen3.5-2B-GGUF:Q4_K_M` | 58.42 | 3971 / 6144 MiB (~64.6%) | Stable |
+| `qwen3.5-2b-instruct-quality.env` | `bartowski/Qwen_Qwen3.5-2B-GGUF:Q5_K_M` | 50.44 | 3651 / 6144 MiB (~59.4%) | Stable |
+| `qwen3.5-4b-instruct-speed.env` | `bartowski/Qwen_Qwen3.5-4B-GGUF:Q4_K_M` | 27.72 | 5445 / 6144 MiB (~88.6%) | Stable |
+| `qwen3.5-4b-instruct-quality.env` (initial) | `bartowski/Qwen_Qwen3.5-4B-GGUF:Q5_K_M` | 25.96 | 5629 / 6144 MiB (~91.6%) | Above target |
+| `qwen3.5-4b-instruct-quality.env` (tuned: `BATCH/UBATCH=640`) | `bartowski/Qwen_Qwen3.5-4B-GGUF:Q5_K_M` | 25.93 | 5507 / 6144 MiB (~89.6%) | Stable |
+
+### Quality comparisons
+
+#### Gemma family comparison (same prompts, deterministic settings)
 
 Compared models:
 - `unsloth/gemma-4-E4B-it-GGUF:UD-Q4_K_XL`
@@ -215,6 +248,24 @@ Result:
 - **Best overall quality and stability:** `unsloth/gemma-4-E4B-it-GGUF:UD-Q4_K_XL`
 - **Fastest but less reliable quality:** `unsloth/gemma-4-E2B-it-GGUF:UD-Q4_K_XL`
 - **Good alternative:** `bartowski/google_gemma-4-E4B-it-GGUF:Q4_K_M`
+
+#### Head-to-head (50/50 coding/general): Gemma 4B vs Qwen 3.5 4B
+
+Compared models:
+- `unsloth/gemma-4-E4B-it-GGUF:UD-Q4_K_XL`
+- `bartowski/Qwen_Qwen3.5-4B-GGUF:Q5_K_M`
+
+Operational outcome:
+- Gemma 4B: ~22.9 tok/s, ~5769 / 6144 MiB VRAM
+- Qwen 3.5 4B Q5: ~26.35 tok/s, ~5505 / 6144 MiB VRAM
+
+Quality outcome from test prompts:
+- **Gemma 4B produced complete final answers consistently**.
+- **Qwen 3.5 4B was faster, but in multiple prompts consumed output budget in `reasoning_content` and returned empty final `content`** (`finish_reason=length`).
+
+Practical recommendation (current settings):
+- For mixed 50/50 coding + general chat, use **Gemma 4B E4B UD-Q4_K_XL** as default quality/stability profile.
+- Use **Qwen 3.5 4B Q5** when speed/VRAM headroom is prioritized and occasional response-finalization issues are acceptable.
 
 Status: **OK** (model endpoint ready and serving responses).
 

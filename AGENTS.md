@@ -1,53 +1,50 @@
 # AGENTS.md
 
 ## Scope
-- Repository is a Dockerized `llama.cpp` server for a remote host: `ag@192.168.200.38`.
-- Main operational files: `docker-compose.yml`, `sync.sh`, `configs/*.env`.
+- This repo runs a remote `llama.cpp` server on `ag@192.168.200.38`.
+- Operational sources of truth: `docker-compose.yml`, `Dockerfile`, `sync.sh`, `configs/*.env`.
 
-## Critical deployment behavior (easy to get wrong)
-- `sync.sh` **does not sync `.env`** (`rsync` excludes it). Updating a config file alone does not change the active remote model.
-- For model/config switches, do one of these explicitly on remote:
+## Deployment gotchas (critical)
+- `sync.sh push` excludes `.env` (`--exclude=".env"`). Editing `configs/*.env` locally does not switch the active remote model.
+- Remote `docker compose up -d` without `--env-file` uses `~/llama/.env` if present; otherwise compose defaults from `docker-compose.yml`.
+- Safe model switch patterns on remote:
   - `cp ~/llama/configs/<config>.env ~/llama/.env && docker compose up -d`
   - `docker compose --env-file configs/<config>.env up -d`
-- `docker compose up -d` without `--env-file` uses remote `~/llama/.env` (or compose defaults if missing).
 
-## Verified commands
+## Fast operational commands
 ```bash
-# Sync repo to remote
+# Sync repo only (no restart)
 ./sync.sh push
 
-# Deploy specific config (recommended)
-ssh ag@192.168.200.38 "cd ~/llama && docker compose --env-file configs/gemma4-e2b-ud-q4-xl.env up -d"
+# Restart current remote setup
+./sync.sh deploy
 
-# Make config persistent default on remote
-ssh ag@192.168.200.38 "cp ~/llama/configs/gemma4-e2b-ud-q4-xl.env ~/llama/.env"
+# Rebuild image + restart remotely
+./sync.sh rebuild
 
-# Health check
-ssh ag@192.168.200.38 "curl -s http://localhost:8089/health"
+# Health / status
+./sync.sh health
+./sync.sh status
 
-# Throughput test (read predicted_per_second)
+# Throughput probe (predicted_per_second)
 ssh ag@192.168.200.38 'curl -s http://localhost:8089/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d "{\"messages\":[{\"role\":\"user\",\"content\":\"Write ~500 chars of text.\"}],\"model\":\"gemma-4\",\"max_tokens\":500}"' \
   | jq '.timings.predicted_per_second'
-
-# VRAM and RAM checks
-ssh ag@192.168.200.38 "nvidia-smi --query-gpu=memory.used,memory.total --format=csv"
-ssh ag@192.168.200.38 "free -m"
 ```
 
-## Current verified baselines
-- `configs/gemma4-e2b-ud-q4-xl.env` (BATCH/UBATCH=2048): ~50.8 tok/s, VRAM ~4.4 GB.
-- `configs/gemma4-e4b-ud-q4-xl.env`: ~27 tok/s, VRAM ~5.0 GB.
-- `configs/gemma4-26b-ud-iq2-xxs.env` (MoE partial offload): ~20 tok/s, VRAM ~5.2 GB.
+## Runtime/build facts agents usually miss
+- Compose default model is E4B Unsloth (`MODEL` default in `docker-compose.yml`).
+- Compose defaults are high-memory oriented: `CTX=65536`, `NGLAYERS=40`, `BATCH=1024`, `UBATCH=1024`.
+- `docker-compose.yml` does not pass `THREADS_BATCH`, `PARALLEL`, `POLL`; these are only wired in `docker-compose.test.yml`.
+- Build is pinned by `LLAMA_REF` (`docker-compose.yml` -> build arg, default `b9009`).
+- Docker build sets `-DGGML_CUDA_NCCL=OFF`; keep it unless you intentionally rework CUDA/NCCL runtime.
 
-## Non-obvious config caveats
-- `docker-compose.yml` does **not** pass `THREADS_BATCH`, `PARALLEL`, `POLL` flags.
-  - These keys in `.env`/configs are currently ignored in normal runs.
-  - They are only wired in `docker-compose.test.yml`.
-- Compose defaults in `docker-compose.yml` are E4B-oriented (`MODEL`, `CTX=65536`, `NGLAYERS=40`, `BATCH=1024`).
+## File-level caveats
+- `docker-compose.test.yml` still uses legacy build args (`PR_NUMBER`, `GH_TOKEN`) not consumed by current `Dockerfile`; treat this file as experimental unless updated.
+- `sync.sh` output/comments are partly Polish; do not infer docs language policy from it.
 
-## Modification constraints
-- Do not modify `Dockerfile` unless user explicitly asks.
-- Keep documentation/comments in English only.
-- Archive legacy test configs under `configs/archive/`; keep active runtime configs in `configs/`.
+## Constraints
+- Do not modify `Dockerfile` unless the user explicitly asks.
+- Keep documentation/comments in English.
+- Keep active runtime configs in `configs/`; move deprecated/test-only configs to `configs/archive/`.
