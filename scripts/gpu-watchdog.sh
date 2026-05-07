@@ -8,8 +8,6 @@ set -euo pipefail
 # ──────────────────────────────────────────────
 # Configuration
 # ──────────────────────────────────────────────
-COMPOSE_DIR="$HOME/llama"
-SERVICE="llama-server"
 CONTAINER="llama-llama-server-1"
 LOG_FILE="/var/log/llama-gpu-watchdog.log"
 LOCK_FILE="/tmp/llama-watchdog.lock"
@@ -74,7 +72,7 @@ is_cpu_fallback() {
 attempt_repair() {
     local attempt="$1"
     log "REPAIR: attempt $attempt -- restarting container"
-    cd "$COMPOSE_DIR" && docker compose restart "$SERVICE" || true
+    docker restart "$CONTAINER" >/dev/null 2>&1 || true
 
     # Wait for health
     for i in $(seq 1 60); do
@@ -88,6 +86,28 @@ attempt_repair() {
     done
 
     log "REPAIR: health NOT OK after restart"
+    return 1
+}
+
+deep_repair() {
+    log "DEEP-REPAIR: restarting docker + nvidia-persistenced"
+    systemctl restart docker || true
+    systemctl restart nvidia-persistenced || true
+
+    # ensure container is up again
+    docker start "$CONTAINER" >/dev/null 2>&1 || true
+
+    for i in $(seq 1 90); do
+        local code
+        code=$(curl -s -o /dev/null -w "%{http_code}" "$HEALTH_URL" 2>/dev/null || echo "000")
+        if [[ "$code" == "200" ]]; then
+            log "DEEP-REPAIR: health OK after docker/nvidia restart"
+            return 0
+        fi
+        sleep 2
+    done
+
+    log "DEEP-REPAIR: health NOT OK after docker/nvidia restart"
     return 1
 }
 
@@ -158,8 +178,23 @@ main() {
         # Verify GPU is actually back
         sleep 5
         if is_cpu_fallback; then
-            log "REPAIR: still CPU fallback after restart, will retry next cycle"
-            exit 1
+            log "REPAIR: still CPU fallback after container restart"
+
+            # second-stage self-heal
+            if deep_repair; then
+                sleep 8
+                if is_cpu_fallback; then
+                    log "DEEP-REPAIR: still CPU fallback, will retry next cycle"
+                    exit 1
+                else
+                    log "DEEP-REPAIR: SUCCESS -- GPU recovered"
+                    rm -f "$counter_file"
+                    exit 0
+                fi
+            else
+                log "DEEP-REPAIR: failed to restore service"
+                exit 1
+            fi
         else
             log "REPAIR: SUCCESS -- GPU recovered"
             rm -f "$counter_file"
