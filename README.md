@@ -309,3 +309,21 @@ curl http://192.168.200.38:8089/v1/chat/completions \
 - **CUDA:** 12.4
 - **Build flags:** `GGML_CUDA_NCCL=OFF` (single-GPU host, avoids `libnccl.so.2` runtime issue)
 - **Base image:** nvidia/cuda:12.4.0-devel-ubuntu22.04
+
+## Recovery / GPU self-heal
+
+- GPU watchdog (`scripts/gpu-watchdog.sh`) detects CPU fallback:
+  - `nvidia-smi` shows 0 MiB used by container,
+  - logs contain `ggml_cuda_init: failed` or `no usable GPU found`.
+- Self-heal attempts (max `MAX_ATTEMPTS=2`, cooldown `COOLDOWN_MINUTES=30`):
+  1. `docker compose restart llama-server`
+  2. Wait for `/health` → `200`
+  3. If still CPU fallback: restart Docker + nvidia-persistenced
+- Logs: `/var/log/llama-gpu-watchdog.log` + `logger -t llama-gpu-watchdog`
+- Deploy:
+  ```bash
+  cp scripts/gpu-watchdog.sh /root/llama/scripts/
+  cp deploy/systemd/llama-gpu-watchdog.{service,timer} /etc/systemd/system/
+  systemctl daemon-reload
+  systemctl enable --now llama-gpu-watchdog.timer
+  ```

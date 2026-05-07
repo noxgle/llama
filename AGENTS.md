@@ -48,3 +48,23 @@ ssh ag@192.168.200.38 'curl -s http://localhost:8089/v1/chat/completions \
 - Do not modify `Dockerfile` unless the user explicitly asks.
 - Keep documentation/comments in English.
 - Keep active runtime configs in `configs/`; move deprecated/test-only configs to `configs/archive/`.
+
+## Recovery / self-heal
+- GPU watchdog is deployed via `scripts/gpu-watchdog.sh` with systemd timer (`deploy/systemd/llama-gpu-watchdog.{service,timer}`).
+- It detects CPU fallback:
+  - `nvidia-smi` shows 0 MiB used by `llama-server` container,
+  - logs contain `ggml_cuda_init: failed` or `no usable GPU found`,
+  - inside-container `nvidia-smi` shows 0 MiB VRAM.
+- Self-heal sequence:
+  1. `docker compose restart llama-server`
+  2. Wait for `/health` → `200`
+  3. If still CPU fallback: restart Docker + nvidia-persistenced
+  4. Max `MAX_ATTEMPTS` (default 2) per cooldown (default 30 min)
+- Logs: `/var/log/llama-gpu-watchdog.log` + `logger -t llama-gpu-watchdog`
+- Deploy:
+  ```bash
+  cp scripts/gpu-watchdog.sh /root/llama/scripts/
+  cp deploy/systemd/llama-gpu-watchdog.{service,timer} /etc/systemd/system/
+  systemctl daemon-reload
+  systemctl enable --now llama-gpu-watchdog.timer
+  ```

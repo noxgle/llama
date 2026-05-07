@@ -1,0 +1,14 @@
+[Unit]
+Description=llama.cpp GPU Watchdog - detects CPU fallback and self-heals
+After=docker.service
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/root/llama
+ExecStart=/root/llama/scripts/gpu-watchdog.sh
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
