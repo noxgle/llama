@@ -35,6 +35,12 @@ lock() {
 # Detection: is llama running on CPU?
 # ──────────────────────────────────────────────
 is_cpu_fallback() {
+    # Prereq check: if UVM device nodes are missing, CUDA cannot initialize
+    if [[ ! -e /dev/nvidia-uvm ]]; then
+        log "DETECT: /dev/nvidia-uvm missing on host (likely LXC passthrough or host module issue)"
+        return 0
+    fi
+
     # Check 1: nvidia-smi shows 0 MiB used by llama-server container
     local vram
     vram=$(nvidia-smi --query-gpu=memory.used --format=csv,noheader 2>/dev/null | tr -d ' MiB' | head -1)
@@ -152,6 +158,13 @@ main() {
     if ! is_cpu_fallback; then
         log "OK: GPU is being used properly"
         exit 0
+    fi
+
+    # If required NVIDIA device nodes are missing, restarts will not help
+    if [[ ! -e /dev/nvidia-uvm ]]; then
+        log "HARD-FAIL: /dev/nvidia-uvm missing; requires Proxmox host-side module/device passthrough fix"
+        date +%s > "$cooldown_file"
+        exit 1
     fi
 
     # Read attempt counter
