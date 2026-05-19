@@ -1,132 +1,109 @@
 # Llama.cpp Server with Docker
 
-Docker Compose setup for llama.cpp with CUDA + MTP speculative decoding, optimized for running LLM models on GPU.
+Docker Compose setup for a remote `llama.cpp` OpenAI-compatible server with CUDA and upstream MTP speculative decoding.
 
-## Hardware
+This repository operates on:
+- **Proxmox host:** `root@192.168.200.7`
+- **LXC runtime node:** `root@192.168.200.38:/opt/llama`
 
-- **VM:** Debian 13 (trixie) LXC on Proxmox
+## Table of Contents
+
+- [Hardware and Topology](#hardware-and-topology)
+- [Current Production Profile](#current-production-profile)
+- [Quick Start](#quick-start)
+- [Configuration](#configuration)
+- [API Endpoints](#api-endpoints)
+- [Operational Commands](#operational-commands)
+- [Post-Reboot Throughput Incident (Resolved)](#post-reboot-throughput-incident-resolved)
+- [LXC Configuration (VMID 1004)](#lxc-configuration-vmid-1004)
+- [Proxmox Host Configuration](#proxmox-host-configuration)
+- [Boot Sequence and Recovery Logic](#boot-sequence-and-recovery-logic)
+- [Benchmark Results](#benchmark-results)
+- [Build Info](#build-info)
+- [GPU Watchdog](#gpu-watchdog)
+- [Troubleshooting](#troubleshooting)
+
+## Hardware and Topology
+
+- **Runtime:** Debian 13 LXC on Proxmox
 - **GPU:** NVIDIA GTX 1060 6GB
-- **RAM:** 24GB
+- **RAM:** 24 GB
 - **CPU:** 6 cores
-- **Server:** `root@192.168.200.38:/opt/llama`
+- **Active project path:** `/opt/llama`
+
+## Current Production Profile
+
+Canonical production config file:
+
+- `configs/qwen3.6-35ba3b-mtp-unsloth.env`
+
+Key values:
+
+- `MODEL=unsloth/Qwen3.6-35B-A3B-MTP-GGUF:UD-Q4_K_M`
+- `CTX=131072` (128K)
+- `NGLAYERS=999`
+- `SPEC_TYPE=draft-mtp`
+- `SPEC_DRAFT_N_MAX=1`
+- `FLASHATTN=on`
+- `BATCH=1024`, `UBATCH=1024`
+
+Typical steady-state (after full startup stabilization):
+
+- Throughput: ~20–23 tok/s
+- VRAM: ~4.4–5.2 GiB / 6.0 GiB
 
 ## Quick Start
 
 ```bash
-# Build and start
+# Build and start locally
 docker compose up -d --build
 
-# Check status
+# Check health
 curl http://192.168.200.38:8089/health
 
-# View logs
+# Tail logs
 docker compose logs -f
 ```
 
 ## Configuration
 
-### Using .env files
-
-**Note:** `.env` is gitignored and never synced to the server by `sync.sh`. To switch configs, you must copy the config on the server directly.
+### Local `.env` switch
 
 ```bash
-# Current production: Qwen3.6 35B-A3B with MTP (CTX=128K)
 cp configs/qwen3.6-35ba3b-mtp-unsloth.env .env
 docker compose up -d
-
-# Or use --env-file directly (works locally)
-docker compose --env-file configs/qwen3.6-35ba3b-mtp-unsloth.env up -d
 ```
 
-To switch the running server config:
+### Server-side `.env` switch (authoritative)
+
+> `.env` is gitignored and excluded by `sync.sh push`, so active runtime must be switched directly on the server.
 
 ```bash
 ssh root@192.168.200.38
-cp /opt/llama/configs/<name>.env /opt/llama/.env
+cp /opt/llama/configs/qwen3.6-35ba3b-mtp-unsloth.env /opt/llama/.env
 docker compose down && docker compose up -d
 ```
 
-### Environment Variables
+### Important environment variables
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `MODEL` | HuggingFace repo:quant or local path | `unsloth/Qwen3.6-35B-A3B-MTP-GGUF:UD-Q4_K_M` |
-| `PORT` | Server port | `8089` |
-| `HOST` | Listen address | `0.0.0.0` |
-| `CTX` | Context size | `131072` |
-| `N_PREDICT` | Max tokens (-1 = unlimited) | `-1` |
-| `NGLAYERS` | GPU layers (999=all, 0=CPU) | `999` |
-| `CPUMOE` | MoE experts on CPU | `exps=CPU` or empty |
-| `FLASHATTN` | Flash Attention | `on`, `off`, `auto` |
-| `BATCH` | Batch size | `1024` |
-| `UBATCH` | Physical batch | `1024` |
-| `THREADS` | CPU threads | `6` |
-| `THREADS_BATCH` | Batch CPU threads | `6` |
-| `CACHE_TYPE_K` | KV cache key quantization | `q4_0` |
-| `CACHE_TYPE_V` | KV cache value quantization | `q4_0` |
-| `SPEC_TYPE` | Speculative decoding type | `draft-mtp` or `none` |
-| `SPEC_DRAFT_N_MAX` | Max MTP draft tokens | `1` |
-
-### Parameters Explained
-
-| Parameter | Description |
-|-----------|-------------|
-| `-hf` | Load model from HuggingFace |
-| `--jinja` | Enable Jinja chat template |
-| `-c` | Context size (tokens) |
-| `-ngl` | Layers offloaded to GPU |
-| `-ot exps=CPU` | Keep MoE experts in CPU (saves VRAM) |
-| `-fa` | Flash Attention |
-| `-b` / `-ub` | Batch sizes |
-| `-t` / `--threads-batch` | CPU threads |
-| `--mlock` | Lock model in RAM |
-| `--fit off` | Disable auto-fit to VRAM |
-| `--spec-type` | Speculative decoding mode (`draft-mtp`) |
-| `--spec-draft-n-max` | MTP draft tokens per step |
-
-## MTP Speculative Decoding
-
-This server uses upstream MTP (Multi-Token Prediction) speculative decoding from [llama.cpp PR #22673](https://github.com/ggml-org/llama.cpp/pull/22673), using the built-in MTP head in the Qwen3.6-35B-A3B model.
-
-- **Flags:** `--spec-type draft-mtp --spec-draft-n-max 1 --no-mmproj`
-- **Acceptance rate:** ~80% with `N_MAX=1`
-- **Throughput:** ~21.7 tok/s (Q4_K_M, CTX=128K, GTX 1060 6GB)
-- **VRAM:** ~4493/6144 MiB
-- **Note:** `--no-mmproj` is required — MTP segfaults on multimodal prompts otherwise.
-
-## Available Configs
-
-### Current production
-
-#### configs/qwen3.6-35ba3b-mtp-unsloth.env
-- Model: `unsloth/Qwen3.6-35B-A3B-MTP-GGUF:UD-Q4_K_M`
-- Context: 128K (131072)
-- GPU layers: 999 (all possible)
-- MTP: `draft-mtp`, `SPEC_DRAFT_N_MAX=1`
-- VRAM: ~5.1 / 6.0 GiB, RAM: ~20 / 24 GiB
-- Throughput: ~20-23 tok/s after full startup stabilization
-- Notes: **DEFAULT** — production profile (Unsloth + 128K)
-
-### Legacy / archived (previously tested)
-
-All Gemma 4 and Qwen 3.5 configs are preserved for reference but no longer active:
-
-| Config | Model | Throughput | VRAM |
-|--------|-------|-----------:|-----:|
-| `gemma4-e4b-ud-q4-xl.env` | `unsloth/gemma-4-E4B-it-GGUF:UD-Q4_K_XL` | ~23.2 tok/s | 5779 / 6144 MiB |
-| `gemma4-e2b-ud-q4-xl.env` | `unsloth/gemma-4-E2B-it-GGUF:UD-Q4_K_XL` | ~41-45 tok/s | ~6045 / 6144 MiB |
-| `gemma4-26b-unsloth.env` | `unsloth/gemma-4-26B-A4B-it-GGUF:Q4_K_M` | — | ~5GB VRAM |
-| `qwen3.5-4b-instruct-quality.env` | `bartowski/Qwen_Qwen3.5-4B-GGUF:Q5_K_M` | ~25.9 tok/s | 5507 / 6144 MiB |
-| `qwen3.5-2b-instruct-speed.env` | `bartowski/Qwen_Qwen3.5-2B-GGUF:Q4_K_M` | ~58.4 tok/s | 3971 / 6144 MiB |
-
-Additional test-only configs live in `configs/archive/`.
+| Variable | Description | Production value |
+|---|---|---|
+| `MODEL` | Hugging Face model selector | `unsloth/Qwen3.6-35B-A3B-MTP-GGUF:UD-Q4_K_M` |
+| `CTX` | Context length | `131072` |
+| `N_PREDICT` | Token cap (`-1` = unlimited) | `-1` |
+| `NGLAYERS` | Layers offloaded to GPU | `999` |
+| `FLASHATTN` | Flash Attention | `on` |
+| `BATCH` / `UBATCH` | Batch settings | `1024` / `1024` |
+| `THREADS` / `THREADS_BATCH` | CPU thread settings | `6` / `6` |
+| `SPEC_TYPE` | Speculative decoding mode | `draft-mtp` |
+| `SPEC_DRAFT_N_MAX` | MTP draft tokens per step | `1` |
 
 ## API Endpoints
 
-- **Health:** http://192.168.200.38:8089/health
-- **OpenAI API:** http://192.168.200.38:8089/v1/chat/completions
+- **Health:** `http://192.168.200.38:8089/health`
+- **Chat completions:** `http://192.168.200.38:8089/v1/chat/completions`
 
-### Example API call
+Example:
 
 ```bash
 curl http://192.168.200.38:8089/v1/chat/completions \
@@ -134,17 +111,8 @@ curl http://192.168.200.38:8089/v1/chat/completions \
   -d '{
     "messages": [{"role": "user", "content": "Hello!"}],
     "model": "qwen3.6",
-    "max_tokens": 500
-  }' | jq '.choices[0].message.content, .usage, .timings.predicted_per_second'
-```
-
-### Quick throughput probe
-
-```bash
-ssh root@192.168.200.38 'curl -s http://localhost:8089/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -d "{\"messages\":[{\"role\":\"user\",\"content\":\"Write ~500 chars.\"}],\"model\":\"qwen3.6\",\"max_tokens\":500}"' \
-  | jq '.timings.predicted_per_second'
+    "max_tokens": 200
+  }' | jq '.choices[0].message.content, .timings.predicted_per_second'
 ```
 
 ## Operational Commands
@@ -152,85 +120,71 @@ ssh root@192.168.200.38 'curl -s http://localhost:8089/v1/chat/completions \
 ### Local
 
 ```bash
-# Build locally
 docker compose build
-
-# Start
 docker compose up -d
-
-# Stop
 docker compose down
-
-# Logs
 docker compose logs -f
 ```
 
-### Remote (manual ssh)
-
-Most `sync.sh` commands target the wrong host/path. Use direct SSH instead:
+### Remote (recommended)
 
 ```bash
 # Health
 ssh root@192.168.200.38 'curl -s http://localhost:8089/health'
 
-# Restart (after config change)
+# Restart after config change
 ssh root@192.168.200.38 'cd /opt/llama && docker compose down && docker compose up -d'
 
-# Rebuild
+# Rebuild remotely
 ssh root@192.168.200.38 'cd /opt/llama && docker compose up -d --build'
 
-# Throughput benchmark with GPU guard
+# Guarded benchmark (fails fast on GPU fallback)
 HOST=root@192.168.200.38 PROJECT_DIR=/opt/llama bash scripts/benchmark-guarded-remote.sh
 ```
 
-### Sync Tool (`sync.sh`)
+### `sync.sh` caveat
 
-`sync.sh` provides file sync but its server target is **wrong** (`ag@...:~/llama` instead of `root@192.168.200.38:/opt/llama`). Useful commands:
+`sync.sh` still points to the wrong host/path (`ag@...:~/llama`).
 
-```bash
-# Push local files to server (configs, scripts, compose)
-./sync.sh push
-
-# Pull configs from server
-./sync.sh pull
-
-# SSH to server
-./sync.sh ssh
-```
-
-**Do not use** `deploy`, `rebuild`, `restart`, `start`, `stop` — they target the wrong host.
+- You can still use `push/pull/ssh` carefully.
+- Do **not** rely on `deploy/rebuild/restart/start/stop` from `sync.sh` until it is corrected.
 
 ## Post-Reboot Throughput Incident (Resolved)
 
 ### Symptom
-- After Proxmox/LXC reboot, service looked healthy (`/health` = 200) and GPU was visible (`nvidia-smi` OK), but throughput dropped to ~1.5-2 tok/s.
 
-### What it was not
-- Not a classic CPU fallback (GPU devices and VRAM usage were present).
-- Not a CTX root cause (issue reproduced independently of context tuning).
+- After host/LXC reboot, service was healthy and GPU was visible, but throughput dropped to ~1.5–2 tok/s.
 
-### Root cause category
-- Boot/startup race condition in the container startup path.
-- Throughput returned to normal (~22 tok/s) immediately after a manual `systemctl restart llama-compose.service`.
+### Not the root cause
 
-### Operational fix
-- Keep host-side NVIDIA readiness guard active (`nvidia-modprobe-ensure.service`).
-- Use LXC-side startup service for llama stack (`llama-compose.service`).
-- Apply delayed post-boot corrective restart (`llama-postboot-restart.service`) to eliminate low-throughput startup state.
+- Not classic CPU fallback (GPU devices and VRAM were present).
+- Not a direct CTX root cause.
 
-### Verified outcome
-- Post-reboot throughput is back to ~22-23 tok/s on Unsloth UD-Q4_K_M with MTP.
+### Root-cause category
+
+- Startup race / degraded runtime state after boot.
+- Manual `systemctl restart llama-compose.service` immediately restored ~22 tok/s.
+
+### Resolution
+
+- Keep host NVIDIA readiness guard active.
+- Keep deterministic LXC compose startup service.
+- Add delayed post-boot corrective restart service.
+
+### Verified result
+
+- After reboot, throughput returns to ~22–23 tok/s.
 
 ## LXC Configuration (VMID 1004)
 
 - VMID: `1004`
 - LXC IP: `192.168.200.38`
-- Host path: `/opt/llama`
+- Project path: `/opt/llama`
 - Autostart:
   - `onboot: 1`
   - `startup: order=5,up=20`
 
-Required GPU passthrough in `pct config 1004`:
+Required GPU passthrough entries (`pct config 1004`):
 
 ```text
 lxc.cgroup2.devices.allow: c 195:* rwm
@@ -248,7 +202,7 @@ Host: `192.168.200.7`
 
 ### Module auto-load
 
-`/etc/modules-load.d/nvidia.conf`:
+`/etc/modules-load.d/nvidia.conf`
 
 ```text
 nvidia
@@ -260,7 +214,7 @@ nvidia_drm
 ### NVIDIA readiness service
 
 - Service: `nvidia-modprobe-ensure.service`
-- Purpose: ensure NVIDIA modules/runtime are ready before guests start.
+- Purpose: ensure NVIDIA stack is ready before guests and Docker workloads.
 - Ordering: before `pve-guests.service`, `pve-container@1004.service`, and Docker.
 
 Quick checks:
@@ -273,13 +227,14 @@ pct status 1004
 
 ## Boot Sequence and Recovery Logic
 
-Expected sequence:
+Expected order:
+
 1. Proxmox host boots and runs `nvidia-modprobe-ensure.service`
-2. LXC `1004` auto-starts (`onboot` + `startup` settings)
-3. `llama-compose.service` starts docker compose stack
+2. LXC `1004` autostarts
+3. `llama-compose.service` starts stack in LXC
 4. `llama-postboot-restart.service` performs delayed corrective restart
 
-Post-reboot validation checklist:
+Post-reboot validation:
 
 ```bash
 # In LXC
@@ -294,47 +249,41 @@ nvidia-smi --query-gpu=memory.used,memory.total --format=csv,noheader
 
 ## Benchmark Results
 
-All benchmarks on GTX 1060 6GB, at default settings unless noted.
+### Current profile (Qwen3.6 35B-A3B MTP Unsloth)
 
-### Qwen3.6 35B-A3B MTP (current)
+| Context | MTP | Throughput | VRAM |
+|---|---|---:|---:|
+| 16K | N_MAX=3 | ~20.1 tok/s | ~4043 MiB |
+| 32K | N_MAX=1 | ~20.9 tok/s | ~4047 MiB |
+| 128K | N_MAX=1 | ~21.7 tok/s | ~4493 MiB |
 
-| Config | Model | MTP | Throughput | VRAM |
-|--------|-------|-----|-----------:|-----:|
-| `qwen3.6-35ba3b-mtp-unsloth.env` (CTX=16K) | Qwen3.6 35B-A3B Q4_K_M | N_MAX=3 | ~20.1 tok/s | ~4043 MiB |
-| `qwen3.6-35ba3b-mtp-unsloth.env` (CTX=32K) | Qwen3.6 35B-A3B Q4_K_M | N_MAX=1 | ~20.9 tok/s | ~4047 MiB |
-| `qwen3.6-35ba3b-mtp-unsloth.env` (CTX=128K) | Qwen3.6 35B-A3B Q4_K_M | N_MAX=1 | ~21.7 tok/s | ~4493 MiB |
+MTP acceptance rate is typically ~80%.
 
-MTP acceptance rate: ~80%. Zero crashes in testing across CTX=16K, 32K, 128K.
-
-### Historical (Gemma 4, Qwen 3.5)
+### Historical profiles
 
 | Profile | Throughput | VRAM |
-|---------|-----------:|-----:|
-| Gemma 4 E4B UD-Q4_K_XL (CTX=128K) | ~23.2 tok/s | 5779 / 6144 MiB |
-| Gemma 4 E2B UD-Q4_K_XL (BATCH=2048) | ~41-45 tok/s | ~6045 / 6144 MiB |
-| Qwen 3.5 2B Q4_K_M (CTX=64K) | ~58.4 tok/s | 3971 / 6144 MiB |
-| Qwen 3.5 4B Q5_K_M (CTX=64K, tuned) | ~25.9 tok/s | 5507 / 6144 MiB |
+|---|---:|---:|
+| Gemma 4 E4B UD-Q4_K_XL (128K) | ~23.2 tok/s | 5779 / 6144 MiB |
+| Gemma 4 E2B UD-Q4_K_XL (BATCH=2048) | ~41–45 tok/s | ~6045 / 6144 MiB |
+| Qwen 3.5 2B Q4_K_M (64K) | ~58.4 tok/s | 3971 / 6144 MiB |
+| Qwen 3.5 4B Q5_K_M (64K tuned) | ~25.9 tok/s | 5507 / 6144 MiB |
 
 ## Build Info
 
-- **Source:** `ggml-org/llama.cpp.git` (master branch)
-- **CUDA:** 12.4
-- **Build flags:** `-DGGML_CUDA_NCCL=OFF` (single-GPU host, avoids `libnccl.so.2` runtime issue)
-- **Base image:** `nvidia/cuda:12.4.0-devel-ubuntu22.04`
-- **Build arg:** `LLAMA_REF=master` (pins git ref; change in `.env` or `docker-compose.yml`)
+- Source: `ggml-org/llama.cpp.git`
+- Ref: `master` (via `LLAMA_REF`)
+- CUDA base image: `nvidia/cuda:12.4.0-devel-ubuntu22.04`
+- Build flag: `-DGGML_CUDA_NCCL=OFF`
 
 ## GPU Watchdog
 
-Auto-heals CPU fallback (when GPU initialisation fails):
+Detects CPU fallback and applies self-heal logic.
 
 - Script: `scripts/gpu-watchdog.sh`
-- Systemd timer: `deploy/systemd/llama-gpu-watchdog.{service,timer}`
-- Detection: 0 MiB VRAM, `ggml_cuda_init: failed` or `no usable GPU found` in logs
-- Self-heal: restart container → if still CPU → restart Docker + nvidia-persistenced
-- Max 2 attempts, 30 min cooldown
+- Systemd units: `deploy/systemd/llama-gpu-watchdog.{service,timer}`
 - Logs: `/var/log/llama-gpu-watchdog.log`
 
-Deploy on server as root:
+Deploy:
 
 ```bash
 cp scripts/gpu-watchdog.sh /opt/llama/scripts/
@@ -345,22 +294,26 @@ systemctl enable --now llama-gpu-watchdog.timer
 
 ## Troubleshooting
 
-### Check GPU usage
+### Check GPU
+
 ```bash
 nvidia-smi --query-compute-apps=pid,name,used_memory --format=csv
 ```
 
-### Check container logs
+### Check logs
+
 ```bash
-docker compose logs --tail=50
+docker compose logs --tail=80
 ```
 
 ### Rebuild
+
 ```bash
 docker compose build --no-cache
 docker compose up -d
 ```
 
 ### Recovery
-- If MTP segfaults: check `/var/log/llama-gpu-watchdog.log`, restart via `docker compose down && docker compose up -d`.
-- If VRAM exhausted: reduce `CTX`, switch to smaller model, or reduce `BATCH`/`UBATCH`.
+
+- If MTP segfaults: check watchdog logs and restart stack (`down && up -d`).
+- If VRAM is saturated: reduce `CTX` or batch settings.
