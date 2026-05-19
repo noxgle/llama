@@ -1,13 +1,14 @@
 # Llama.cpp Server with Docker
 
-Docker Compose setup for llama.cpp with CUDA support, optimized for running LLM models on GPU.
+Docker Compose setup for llama.cpp with CUDA + MTP speculative decoding, optimized for running LLM models on GPU.
 
 ## Hardware
 
-- **VM:** Debian 13 (trixie)
+- **VM:** Debian 13 (trixie) LXC on Proxmox
 - **GPU:** NVIDIA GTX 1060 6GB
-- **RAM:** 12GB
+- **RAM:** 24GB
 - **CPU:** 6 cores
+- **Server:** `root@192.168.200.38:/opt/llama`
 
 ## Quick Start
 
@@ -26,248 +27,229 @@ docker compose logs -f
 
 ### Using .env files
 
+**Note:** `.env` is gitignored and never synced to the server by `sync.sh`. To switch configs, you must copy the config on the server directly.
+
 ```bash
-# Use Gemma 4 E4B (DEFAULT)
-cp configs/gemma4-e4b-ud-q4-xl.env .env
+# Current production: Qwen3.6 35B-A3B with MTP (CTX=128K)
+cp configs/qwen3.6-35ba3b-mtp.env .env
 docker compose up -d
 
-# Use Gemma 4 E2B (faster, lower VRAM)
-cp configs/gemma4-e2b-ud-q4-xl.env .env
-docker compose up -d
+# Or use --env-file directly (works locally)
+docker compose --env-file configs/qwen3.6-35ba3b-mtp.env up -d
+```
 
-# Or use --env-file directly
-docker compose --env-file configs/gemma4-e4b-ud-q4-xl.env up -d
+To switch the running server config:
+
+```bash
+ssh root@192.168.200.38
+cp /opt/llama/configs/<name>.env /opt/llama/.env
+docker compose down && docker compose up -d
 ```
 
 ### Environment Variables
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `MODEL` | HuggingFace repo:quant | `ggml-org/gemma-4-E4B-it-GGUF:Q4_K_M` |
+| `MODEL` | HuggingFace repo:quant or local path | `localweights/Qwen3.6-35B-A3B-MTP-Q4_K_M-GGUF` |
 | `PORT` | Server port | `8089` |
 | `HOST` | Listen address | `0.0.0.0` |
-| `CTX` | Context size | `32768` |
-| `NGLAYERS` | GPU layers (999=all, 0=CPU) | `50` |
+| `CTX` | Context size | `131072` |
+| `N_PREDICT` | Max tokens (-1 = unlimited) | `-1` |
+| `NGLAYERS` | GPU layers (999=all, 0=CPU) | `999` |
 | `CPUMOE` | MoE experts on CPU | `exps=CPU` or empty |
 | `FLASHATTN` | Flash Attention | `on`, `off`, `auto` |
-| `BATCH` | Batch size | `256` |
-| `UBATCH` | Physical batch | `256` |
+| `BATCH` | Batch size | `1024` |
+| `UBATCH` | Physical batch | `1024` |
 | `THREADS` | CPU threads | `6` |
+| `THREADS_BATCH` | Batch CPU threads | `6` |
+| `CACHE_TYPE_K` | KV cache key quantization | `q4_0` |
+| `CACHE_TYPE_V` | KV cache value quantization | `q4_0` |
+| `SPEC_TYPE` | Speculative decoding type | `draft-mtp` or `none` |
+| `SPEC_DRAFT_N_MAX` | Max MTP draft tokens | `1` |
 
-## Parameters Explained
+### Parameters Explained
 
 | Parameter | Description |
 |-----------|-------------|
 | `-hf` | Load model from HuggingFace |
-| `--jinja` | Enable Jinja chat template (required for Gemma) |
+| `--jinja` | Enable Jinja chat template |
 | `-c` | Context size (tokens) |
 | `-ngl` | Layers offloaded to GPU |
 | `-ot exps=CPU` | Keep MoE experts in CPU (saves VRAM) |
 | `-fa` | Flash Attention |
 | `-b` / `-ub` | Batch sizes |
-| `-t` | CPU threads |
+| `-t` / `--threads-batch` | CPU threads |
 | `--mlock` | Lock model in RAM |
 | `--fit off` | Disable auto-fit to VRAM |
+| `--spec-type` | Speculative decoding mode (`draft-mtp`) |
+| `--spec-draft-n-max` | MTP draft tokens per step |
+
+## MTP Speculative Decoding
+
+This server uses upstream MTP (Multi-Token Prediction) speculative decoding from [llama.cpp PR #22673](https://github.com/ggml-org/llama.cpp/pull/22673), using the built-in MTP head in the Qwen3.6-35B-A3B model.
+
+- **Flags:** `--spec-type draft-mtp --spec-draft-n-max 1 --no-mmproj`
+- **Acceptance rate:** ~80% with `N_MAX=1`
+- **Throughput:** ~21.7 tok/s (Q4_K_M, CTX=128K, GTX 1060 6GB)
+- **VRAM:** ~4493/6144 MiB
+- **Note:** `--no-mmproj` is required — MTP segfaults on multimodal prompts otherwise.
 
 ## Available Configs
 
-### configs/gemma4-e4b-ud-q4-xl.env
-- Model: unsloth/gemma-4-E4B-it-GGUF:UD-Q4_K_XL
-- Context: 128K
-- GPU layers: 40
-- VRAM: ~5.7GB
-- Tokens/sec: ~23-24 (TESTED)
-- Notes: **DEFAULT** - Unsloth Dynamic 2.0
+### Current production
 
-### configs/gemma4-e2b-ud-q4-xl.env
-- Model: unsloth/gemma-4-E2B-it-GGUF:UD-Q4_K_XL
-- Context: 128K
-- GPU layers: 999 (all)
-- VRAM: ~6.0GB (with `BATCH/UBATCH=2048`)
-- Tokens/sec: ~41-45 (TESTED)
-- Notes: **FASTEST** profile on this host, but lower output quality than E4B
+#### configs/qwen3.6-35ba3b-mtp.env
+- Model: `localweights/Qwen3.6-35B-A3B-MTP-Q4_K_M-GGUF`
+- Context: 128K (131072)
+- GPU layers: 999 (all possible)
+- MTP: `draft-mtp`, `SPEC_DRAFT_N_MAX=1`
+- VRAM: ~4493 / 6144 MiB, RAM: ~20 / 24 GiB
+- Throughput: ~21.7 tok/s
+- Notes: **DEFAULT** — stable, MTP speculative decoding active
 
-### configs/gemma4-e4b-q4-unsloth.env (DEPRECATED)
-- Model: unsloth/gemma-4-E4B-it-GGUF:Q4_K_M
-- Context: 32K
-- GPU layers: 50
-- VRAM: ~4.5GB
-- Notes: Use `gemma4-e4b-ud-q4-xl.env` instead.
+### Legacy / archived (previously tested)
 
-### configs/gemma4-26b-unsloth.env
-- Model: unsloth/gemma-4-26B-A4B-it-GGUF:Q4_K_M (MoE)
-- Context: 32K
-- GPU layers: 30 (partial offload)
-- VRAM: ~5GB / RAM: ~12GB
-- Notes: MoE model with chain-of-thinking.
+All Gemma 4 and Qwen 3.5 configs are preserved for reference but no longer active:
 
-### configs/qwen3.5-2b-instruct-speed.env
-- Model: bartowski/Qwen_Qwen3.5-2B-GGUF:Q4_K_M
-- Context: 64K
-- GPU layers: 999 (all)
-- Notes: Stability-first speed profile for 6GB VRAM hosts.
+| Config | Model | Throughput | VRAM |
+|--------|-------|-----------:|-----:|
+| `gemma4-e4b-ud-q4-xl.env` | `unsloth/gemma-4-E4B-it-GGUF:UD-Q4_K_XL` | ~23.2 tok/s | 5779 / 6144 MiB |
+| `gemma4-e2b-ud-q4-xl.env` | `unsloth/gemma-4-E2B-it-GGUF:UD-Q4_K_XL` | ~41-45 tok/s | ~6045 / 6144 MiB |
+| `gemma4-26b-unsloth.env` | `unsloth/gemma-4-26B-A4B-it-GGUF:Q4_K_M` | — | ~5GB VRAM |
+| `qwen3.5-4b-instruct-quality.env` | `bartowski/Qwen_Qwen3.5-4B-GGUF:Q5_K_M` | ~25.9 tok/s | 5507 / 6144 MiB |
+| `qwen3.5-2b-instruct-speed.env` | `bartowski/Qwen_Qwen3.5-2B-GGUF:Q4_K_M` | ~58.4 tok/s | 3971 / 6144 MiB |
 
-### configs/qwen3.5-2b-instruct-quality.env
-- Model: bartowski/Qwen_Qwen3.5-2B-GGUF:Q5_K_M
-- Context: 64K
-- GPU layers: 999 (all)
-- Notes: Higher quality profile; keep VRAM under ~90% target.
+Additional test-only configs live in `configs/archive/`.
 
-### configs/qwen3.5-4b-instruct-speed.env
-- Model: bartowski/Qwen_Qwen3.5-4B-GGUF:Q4_K_M
-- Context: 64K
-- GPU layers: 999 (all)
-- Notes: 4B speed profile with conservative batch values.
+## API Endpoints
 
-### configs/qwen3.5-4b-instruct-quality.env
-- Model: bartowski/Qwen_Qwen3.5-4B-GGUF:Q5_K_M
-- Context: 64K
-- GPU layers: 999 (all)
-- Notes: 4B quality profile; reduce batch if VRAM exceeds 90%.
+- **Health:** http://192.168.200.38:8089/health
+- **OpenAI API:** http://192.168.200.38:8089/v1/chat/completions
 
-### Legacy / test configs (archive)
-
-Test configuration files were moved to `configs/archive/`:
-
-- `configs/archive/test-gemma4.env` (duplicate of the former Q5 unsloth config)
-- `configs/archive/test-gemma4-tuned.env`
-- `configs/archive/test-gemma4-q6-tuned.env`
-
-## OpenWebUI Configuration
-
-Configuration for OpenWebUI / OpenAI:
-
-```json
-{
-  "llama": {
-    "npm": "@ai-sdk/openai-compatible",
-    "name": "llama.cpp (remote pve2)",
-    "options": {
-      "baseURL": "http://192.168.200.38:8089/v1",
-      "toolParser": [
-        { "type": "raw-function-call" },
-        { "type": "json" }
-      ]
-    },
-    "models": {
-      "gemma4:e4b": {
-        "name": "Gemma 4 E4B",
-        "tool_call": true,
-        "limit": {
-          "context": 65536,
-          "output": 8192
-        },
-        "modalities": {
-          "input": ["text","image"],
-          "output": ["text"]
-        }
-      },
-      "gemma4:26b": {
-        "name": "Gemma 4 26B",
-        "tool_call": true,
-        "limit": {
-          "context": 32768,
-          "output": 8192
-        }
-      }
-    }
-  }
-}
-```
-
-## Sync Tool
-
-Use `sync.sh` to manage the remote server:
+### Example API call
 
 ```bash
-# Sync local files -> server
+curl http://192.168.200.38:8089/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "messages": [{"role": "user", "content": "Hello!"}],
+    "model": "qwen3.6",
+    "max_tokens": 500
+  }' | jq '.choices[0].message.content, .usage, .timings.predicted_per_second'
+```
+
+### Quick throughput probe
+
+```bash
+ssh root@192.168.200.38 'curl -s http://localhost:8089/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d "{\"messages\":[{\"role\":\"user\",\"content\":\"Write ~500 chars.\"}],\"model\":\"qwen3.6\",\"max_tokens\":500}"' \
+  | jq '.timings.predicted_per_second'
+```
+
+## Operational Commands
+
+### Local
+
+```bash
+# Build locally
+docker compose build
+
+# Start
+docker compose up -d
+
+# Stop
+docker compose down
+
+# Logs
+docker compose logs -f
+```
+
+### Remote (manual ssh)
+
+Most `sync.sh` commands target the wrong host/path. Use direct SSH instead:
+
+```bash
+# Health
+ssh root@192.168.200.38 'curl -s http://localhost:8089/health'
+
+# Restart (after config change)
+ssh root@192.168.200.38 'cd /opt/llama && docker compose down && docker compose up -d'
+
+# Rebuild
+ssh root@192.168.200.38 'cd /opt/llama && docker compose up -d --build'
+
+# Throughput benchmark with GPU guard
+HOST=root@192.168.200.38 PROJECT_DIR=/opt/llama bash scripts/benchmark-guarded-remote.sh
+```
+
+### Sync Tool (`sync.sh`)
+
+`sync.sh` provides file sync but its server target is **wrong** (`ag@...:~/llama` instead of `root@192.168.200.38:/opt/llama`). Useful commands:
+
+```bash
+# Push local files to server (configs, scripts, compose)
 ./sync.sh push
 
-# Sync + container restart
-./sync.sh deploy
-
-# Sync + rebuild + restart
-./sync.sh rebuild
-
-# Stop container
-./sync.sh stop
-
-# Start container
-./sync.sh start
-
-# Restart container
-./sync.sh restart
-
-# Container and GPU status
-./sync.sh status
-
-# Check health
-./sync.sh health
-
-# Container logs
-./sync.sh logs
+# Pull configs from server
+./sync.sh pull
 
 # SSH to server
 ./sync.sh ssh
-
-# Show current configuration
-./sync.sh config
 ```
 
-## Benchmark & quality test summary
+**Do not use** `deploy`, `rebuild`, `restart`, `start`, `stop` — they target the wrong host.
 
-All tests below were executed on the remote host (`192.168.200.38`, GTX 1060 6GB) via the OpenAI-compatible endpoint.
+## Benchmark Results
 
-### Throughput snapshots (~500-character generation)
+All benchmarks on GTX 1060 6GB, at default settings unless noted.
 
-| Profile | Model | Throughput (tok/s) | VRAM | Host RAM |
-|---|---|---:|---:|---:|
-| Gemma E4B default | `unsloth/gemma-4-E4B-it-GGUF:UD-Q4_K_XL` | ~23.24 | 5779 / 6144 MiB | 4510 / 11966 MiB |
-| Gemma E2B fast | `unsloth/gemma-4-E2B-it-GGUF:UD-Q4_K_XL` | ~41-45 | ~6045 / 6144 MiB | ~4510 / 11966 MiB |
+### Qwen3.6 35B-A3B MTP (current)
 
-### Qwen 3.5 Instruct profile tests (stability target: <=90% VRAM)
+| Config | Model | MTP | Throughput | VRAM |
+|--------|-------|-----|-----------:|-----:|
+| `qwen3.6-35ba3b-mtp.env` (CTX=16K) | Qwen3.6 35B-A3B Q4_K_M | N_MAX=3 | ~20.1 tok/s | ~4043 MiB |
+| `qwen3.6-35ba3b-mtp.env` (CTX=32K) | Qwen3.6 35B-A3B Q4_K_M | N_MAX=1 | ~20.9 tok/s | ~4047 MiB |
+| `qwen3.6-35ba3b-mtp.env` (CTX=128K) | Qwen3.6 35B-A3B Q4_K_M | N_MAX=1 | ~21.7 tok/s | ~4493 MiB |
 
-| Config | Model | Throughput (tok/s) | VRAM | Result |
-|---|---|---:|---:|---|
-| `qwen3.5-2b-instruct-speed.env` | `bartowski/Qwen_Qwen3.5-2B-GGUF:Q4_K_M` | 58.42 | 3971 / 6144 MiB (~64.6%) | Stable |
-| `qwen3.5-2b-instruct-quality.env` | `bartowski/Qwen_Qwen3.5-2B-GGUF:Q5_K_M` | 50.44 | 3651 / 6144 MiB (~59.4%) | Stable |
-| `qwen3.5-4b-instruct-speed.env` | `bartowski/Qwen_Qwen3.5-4B-GGUF:Q4_K_M` | 27.72 | 5445 / 6144 MiB (~88.6%) | Stable |
-| `qwen3.5-4b-instruct-quality.env` (initial) | `bartowski/Qwen_Qwen3.5-4B-GGUF:Q5_K_M` | 25.96 | 5629 / 6144 MiB (~91.6%) | Above target |
-| `qwen3.5-4b-instruct-quality.env` (tuned: `BATCH/UBATCH=640`) | `bartowski/Qwen_Qwen3.5-4B-GGUF:Q5_K_M` | 25.93 | 5507 / 6144 MiB (~89.6%) | Stable |
+MTP acceptance rate: ~80%. Zero crashes in testing across CTX=16K, 32K, 128K.
 
-### Quality comparisons
+### Historical (Gemma 4, Qwen 3.5)
 
-#### Gemma family comparison (same prompts, deterministic settings)
+| Profile | Throughput | VRAM |
+|---------|-----------:|-----:|
+| Gemma 4 E4B UD-Q4_K_XL (CTX=128K) | ~23.2 tok/s | 5779 / 6144 MiB |
+| Gemma 4 E2B UD-Q4_K_XL (BATCH=2048) | ~41-45 tok/s | ~6045 / 6144 MiB |
+| Qwen 3.5 2B Q4_K_M (CTX=64K) | ~58.4 tok/s | 3971 / 6144 MiB |
+| Qwen 3.5 4B Q5_K_M (CTX=64K, tuned) | ~25.9 tok/s | 5507 / 6144 MiB |
 
-Compared models:
-- `unsloth/gemma-4-E4B-it-GGUF:UD-Q4_K_XL`
-- `unsloth/gemma-4-E2B-it-GGUF:UD-Q4_K_XL`
-- `bartowski/google_gemma-4-E4B-it-GGUF:Q4_K_M`
+## Build Info
 
-Result:
-- **Best overall quality and stability:** `unsloth/gemma-4-E4B-it-GGUF:UD-Q4_K_XL`
-- **Fastest but less reliable quality:** `unsloth/gemma-4-E2B-it-GGUF:UD-Q4_K_XL`
-- **Good alternative:** `bartowski/google_gemma-4-E4B-it-GGUF:Q4_K_M`
+- **Source:** `ggml-org/llama.cpp.git` (master branch)
+- **CUDA:** 12.4
+- **Build flags:** `-DGGML_CUDA_NCCL=OFF` (single-GPU host, avoids `libnccl.so.2` runtime issue)
+- **Base image:** `nvidia/cuda:12.4.0-devel-ubuntu22.04`
+- **Build arg:** `LLAMA_REF=master` (pins git ref; change in `.env` or `docker-compose.yml`)
 
-#### Head-to-head (50/50 coding/general): Gemma 4B vs Qwen 3.5 4B
+## GPU Watchdog
 
-Compared models:
-- `unsloth/gemma-4-E4B-it-GGUF:UD-Q4_K_XL`
-- `bartowski/Qwen_Qwen3.5-4B-GGUF:Q5_K_M`
+Auto-heals CPU fallback (when GPU initialisation fails):
 
-Operational outcome:
-- Gemma 4B: ~22.9 tok/s, ~5769 / 6144 MiB VRAM
-- Qwen 3.5 4B Q5: ~26.35 tok/s, ~5505 / 6144 MiB VRAM
+- Script: `scripts/gpu-watchdog.sh`
+- Systemd timer: `deploy/systemd/llama-gpu-watchdog.{service,timer}`
+- Detection: 0 MiB VRAM, `ggml_cuda_init: failed` or `no usable GPU found` in logs
+- Self-heal: restart container → if still CPU → restart Docker + nvidia-persistenced
+- Max 2 attempts, 30 min cooldown
+- Logs: `/var/log/llama-gpu-watchdog.log`
 
-Quality outcome from test prompts:
-- **Gemma 4B produced complete final answers consistently**.
-- **Qwen 3.5 4B was faster, but in multiple prompts consumed output budget in `reasoning_content` and returned empty final `content`** (`finish_reason=length`).
+Deploy on server as root:
 
-Practical recommendation (current settings):
-- For mixed 50/50 coding + general chat, use **Gemma 4B E4B UD-Q4_K_XL** as default quality/stability profile.
-- Use **Qwen 3.5 4B Q5** when speed/VRAM headroom is prioritized and occasional response-finalization issues are acceptable.
-
-Status: **OK** (model endpoint ready and serving responses).
+```bash
+cp scripts/gpu-watchdog.sh /opt/llama/scripts/
+cp deploy/systemd/llama-gpu-watchdog.{service,timer} /etc/systemd/system/
+systemctl daemon-reload
+systemctl enable --now llama-gpu-watchdog.timer
+```
 
 ## Troubleshooting
 
@@ -287,43 +269,6 @@ docker compose build --no-cache
 docker compose up -d
 ```
 
-## API Endpoints
-
-- **WebUI:** http://192.168.200.38:8089
-- **Health:** http://192.168.200.38:8089/health
-- **OpenAI API:** http://192.168.200.38:8089/v1/chat/completions
-
-### Example API call
-```bash
-curl http://192.168.200.38:8089/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -d '{
-    "messages": [{"role": "user", "content": "Hello!"}],
-    "model": "gemma-4"
-  }'
-```
-
-## Build Info
-
-- **llama.cpp:** b9009 (`0754b7b`)
-- **CUDA:** 12.4
-- **Build flags:** `GGML_CUDA_NCCL=OFF` (single-GPU host, avoids `libnccl.so.2` runtime issue)
-- **Base image:** nvidia/cuda:12.4.0-devel-ubuntu22.04
-
-## Recovery / GPU self-heal
-
-- GPU watchdog (`scripts/gpu-watchdog.sh`) detects CPU fallback:
-  - `nvidia-smi` shows 0 MiB used by container,
-  - logs contain `ggml_cuda_init: failed` or `no usable GPU found`.
-- Self-heal attempts (max `MAX_ATTEMPTS=2`, cooldown `COOLDOWN_MINUTES=30`):
-  1. `docker compose restart llama-server`
-  2. Wait for `/health` → `200`
-  3. If still CPU fallback: restart Docker + nvidia-persistenced
-- Logs: `/var/log/llama-gpu-watchdog.log` + `logger -t llama-gpu-watchdog`
-- Deploy:
-  ```bash
-  cp scripts/gpu-watchdog.sh /root/llama/scripts/
-  cp deploy/systemd/llama-gpu-watchdog.{service,timer} /etc/systemd/system/
-  systemctl daemon-reload
-  systemctl enable --now llama-gpu-watchdog.timer
-  ```
+### Recovery
+- If MTP segfaults: check `/var/log/llama-gpu-watchdog.log`, restart via `docker compose down && docker compose up -d`.
+- If VRAM exhausted: reduce `CTX`, switch to smaller model, or reduce `BATCH`/`UBATCH`.

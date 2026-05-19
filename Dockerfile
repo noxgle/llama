@@ -5,7 +5,8 @@
 # ──────────────────────────────────────────────
 FROM nvidia/cuda:12.4.0-devel-ubuntu22.04 AS builder
 
-ARG LLAMA_REF=b9009
+ARG LLAMA_REPO=https://github.com/ggml-org/llama.cpp.git
+ARG LLAMA_REF=master
 ARG BUILD_JOBS=6
 
 ENV DEBIAN_FRONTEND=noninteractive
@@ -15,7 +16,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Clone pinned llama.cpp reference (tag, branch, or commit)
-RUN git clone --depth 1 --branch ${LLAMA_REF} https://github.com/ggml-org/llama.cpp.git /tmp/llama-cpp-build
+RUN git clone --depth 1 --branch ${LLAMA_REF} ${LLAMA_REPO} /tmp/llama-cpp-build
 
 WORKDIR /tmp/llama-cpp-build
 

@@ -5,7 +5,8 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        LLAMA_REF: "${LLAMA_REF:-b9009}"
+        LLAMA_REPO: "${LLAMA_REPO:-https://github.com/ggml-org/llama.cpp.git}"
+        LLAMA_REF: "${LLAMA_REF:-master}"
         BUILD_JOBS: "6"
     ports:
       - "${PORT:-8089}:${PORT:-8089}"
@@ -26,6 +27,8 @@ services:
       - "--jinja"
       - "-c"
       - "${CTX:-65536}"
+      - "-n"
+      - "${N_PREDICT:--1}"
       - "--port"
       - "${PORT:-8089}"
       - "--host"
@@ -42,6 +45,12 @@ services:
       - "${UBATCH:-1024}"
       - "-t"
       - "${THREADS:-6}"
+      - "--threads-batch"
+      - "${THREADS_BATCH:-6}"
+      - "--parallel"
+      - "${PARALLEL:-2}"
+      - "--poll"
+      - "${POLL:-50}"
       - "--mlock"
       - "--fit"
       - "off"
@@ -50,6 +59,12 @@ services:
       - "-ctv"
       - "${CACHE_TYPE_V:-q4_0}"
       - "--no-mmap"
+      - "--no-mmproj"
+      # MTP speculative decoding (upstream PR #22673)
+      - "--spec-type"
+      - "${SPEC_TYPE:-none}"
+      - "--spec-draft-n-max"
+      - "${SPEC_DRAFT_N_MAX:-3}"
 
 volumes:
   hf-cache:
