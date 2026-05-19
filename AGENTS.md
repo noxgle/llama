@@ -28,7 +28,7 @@
 - These diverge because `.env` never syncs. The server-side `configs/` is only updated via `sync.sh push`, but `.env` must be `cp`'d manually.
 
 ## Current production config (validated stable)
-- **Config file:** `configs/qwen3.6-35ba3b-mtp.env`
+- **Config file:** `configs/qwen3.6-35ba3b-mtp-unsloth.env`
 - **Model:** `localweights/Qwen3.6-35B-A3B-MTP-Q4_K_M-GGUF` (HF community quant)
 - **Context:** 131072 (128K)
 - **MTP:** `SPEC_TYPE=draft-mtp`, `SPEC_DRAFT_N_MAX=1` (~80% accept rate, ~21.7 tok/s)

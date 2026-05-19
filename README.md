@@ -31,11 +31,11 @@ docker compose logs -f
 
 ```bash
 # Current production: Qwen3.6 35B-A3B with MTP (CTX=128K)
-cp configs/qwen3.6-35ba3b-mtp.env .env
+cp configs/qwen3.6-35ba3b-mtp-unsloth.env .env
 docker compose up -d
 
 # Or use --env-file directly (works locally)
-docker compose --env-file configs/qwen3.6-35ba3b-mtp.env up -d
+docker compose --env-file configs/qwen3.6-35ba3b-mtp-unsloth.env up -d
 ```
 
 To switch the running server config:
@@ -98,7 +98,7 @@ This server uses upstream MTP (Multi-Token Prediction) speculative decoding from
 
 ### Current production
 
-#### configs/qwen3.6-35ba3b-mtp.env
+#### configs/qwen3.6-35ba3b-mtp-unsloth.env
 - Model: `localweights/Qwen3.6-35B-A3B-MTP-Q4_K_M-GGUF`
 - Context: 128K (131072)
 - GPU layers: 999 (all possible)
@@ -208,9 +208,9 @@ All benchmarks on GTX 1060 6GB, at default settings unless noted.
 
 | Config | Model | MTP | Throughput | VRAM |
 |--------|-------|-----|-----------:|-----:|
-| `qwen3.6-35ba3b-mtp.env` (CTX=16K) | Qwen3.6 35B-A3B Q4_K_M | N_MAX=3 | ~20.1 tok/s | ~4043 MiB |
-| `qwen3.6-35ba3b-mtp.env` (CTX=32K) | Qwen3.6 35B-A3B Q4_K_M | N_MAX=1 | ~20.9 tok/s | ~4047 MiB |
-| `qwen3.6-35ba3b-mtp.env` (CTX=128K) | Qwen3.6 35B-A3B Q4_K_M | N_MAX=1 | ~21.7 tok/s | ~4493 MiB |
+| `qwen3.6-35ba3b-mtp-unsloth.env` (CTX=16K) | Qwen3.6 35B-A3B Q4_K_M | N_MAX=3 | ~20.1 tok/s | ~4043 MiB |
+| `qwen3.6-35ba3b-mtp-unsloth.env` (CTX=32K) | Qwen3.6 35B-A3B Q4_K_M | N_MAX=1 | ~20.9 tok/s | ~4047 MiB |
+| `qwen3.6-35ba3b-mtp-unsloth.env` (CTX=128K) | Qwen3.6 35B-A3B Q4_K_M | N_MAX=1 | ~21.7 tok/s | ~4493 MiB |
 
 MTP acceptance rate: ~80%. Zero crashes in testing across CTX=16K, 32K, 128K.
 
