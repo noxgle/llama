@@ -50,7 +50,7 @@ docker compose down && docker compose up -d
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `MODEL` | HuggingFace repo:quant or local path | `localweights/Qwen3.6-35B-A3B-MTP-Q4_K_M-GGUF` |
+| `MODEL` | HuggingFace repo:quant or local path | `unsloth/Qwen3.6-35B-A3B-MTP-GGUF:UD-Q4_K_M` |
 | `PORT` | Server port | `8089` |
 | `HOST` | Listen address | `0.0.0.0` |
 | `CTX` | Context size | `131072` |
@@ -99,13 +99,13 @@ This server uses upstream MTP (Multi-Token Prediction) speculative decoding from
 ### Current production
 
 #### configs/qwen3.6-35ba3b-mtp-unsloth.env
-- Model: `localweights/Qwen3.6-35B-A3B-MTP-Q4_K_M-GGUF`
+- Model: `unsloth/Qwen3.6-35B-A3B-MTP-GGUF:UD-Q4_K_M`
 - Context: 128K (131072)
 - GPU layers: 999 (all possible)
 - MTP: `draft-mtp`, `SPEC_DRAFT_N_MAX=1`
-- VRAM: ~4493 / 6144 MiB, RAM: ~20 / 24 GiB
-- Throughput: ~21.7 tok/s
-- Notes: **DEFAULT** — stable, MTP speculative decoding active
+- VRAM: ~5.1 / 6.0 GiB, RAM: ~20 / 24 GiB
+- Throughput: ~20-23 tok/s after full startup stabilization
+- Notes: **DEFAULT** — production profile (Unsloth + 128K)
 
 ### Legacy / archived (previously tested)
 
@@ -199,6 +199,98 @@ HOST=root@192.168.200.38 PROJECT_DIR=/opt/llama bash scripts/benchmark-guarded-r
 ```
 
 **Do not use** `deploy`, `rebuild`, `restart`, `start`, `stop` — they target the wrong host.
+
+## Post-Reboot Throughput Incident (Resolved)
+
+### Symptom
+- After Proxmox/LXC reboot, service looked healthy (`/health` = 200) and GPU was visible (`nvidia-smi` OK), but throughput dropped to ~1.5-2 tok/s.
+
+### What it was not
+- Not a classic CPU fallback (GPU devices and VRAM usage were present).
+- Not a CTX root cause (issue reproduced independently of context tuning).
+
+### Root cause category
+- Boot/startup race condition in the container startup path.
+- Throughput returned to normal (~22 tok/s) immediately after a manual `systemctl restart llama-compose.service`.
+
+### Operational fix
+- Keep host-side NVIDIA readiness guard active (`nvidia-modprobe-ensure.service`).
+- Use LXC-side startup service for llama stack (`llama-compose.service`).
+- Apply delayed post-boot corrective restart (`llama-postboot-restart.service`) to eliminate low-throughput startup state.
+
+### Verified outcome
+- Post-reboot throughput is back to ~22-23 tok/s on Unsloth UD-Q4_K_M with MTP.
+
+## LXC Configuration (VMID 1004)
+
+- VMID: `1004`
+- LXC IP: `192.168.200.38`
+- Host path: `/opt/llama`
+- Autostart:
+  - `onboot: 1`
+  - `startup: order=5,up=20`
+
+Required GPU passthrough in `pct config 1004`:
+
+```text
+lxc.cgroup2.devices.allow: c 195:* rwm
+lxc.cgroup2.devices.allow: c 510:* rwm
+lxc.mount.entry: /dev/nvidia0 dev/nvidia0 none bind,optional,create=file
+lxc.mount.entry: /dev/nvidiactl dev/nvidiactl none bind,optional,create=file
+lxc.mount.entry: /dev/nvidia-uvm dev/nvidia-uvm none bind,optional,create=file
+lxc.mount.entry: /dev/nvidia-uvm-tools dev/nvidia-uvm-tools none bind,optional,create=file
+lxc.mount.entry: /dev/nvidia-caps dev/nvidia-caps none bind,optional,create=dir
+```
+
+## Proxmox Host Configuration
+
+Host: `192.168.200.7`
+
+### Module auto-load
+
+`/etc/modules-load.d/nvidia.conf`:
+
+```text
+nvidia
+nvidia_uvm
+nvidia_modeset
+nvidia_drm
+```
+
+### NVIDIA readiness service
+
+- Service: `nvidia-modprobe-ensure.service`
+- Purpose: ensure NVIDIA modules/runtime are ready before guests start.
+- Ordering: before `pve-guests.service`, `pve-container@1004.service`, and Docker.
+
+Quick checks:
+
+```bash
+systemctl status nvidia-modprobe-ensure.service
+ls -l /dev/nvidia0 /dev/nvidiactl /dev/nvidia-uvm
+pct status 1004
+```
+
+## Boot Sequence and Recovery Logic
+
+Expected sequence:
+1. Proxmox host boots and runs `nvidia-modprobe-ensure.service`
+2. LXC `1004` auto-starts (`onboot` + `startup` settings)
+3. `llama-compose.service` starts docker compose stack
+4. `llama-postboot-restart.service` performs delayed corrective restart
+
+Post-reboot validation checklist:
+
+```bash
+# In LXC
+docker ps
+curl -s http://localhost:8089/health
+curl -s http://localhost:8089/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"messages":[{"role":"user","content":"Write a short sentence."}],"model":"qwen3.6","max_tokens":120}' \
+  | jq '.timings.predicted_per_second'
+nvidia-smi --query-gpu=memory.used,memory.total --format=csv,noheader
+```
 
 ## Benchmark Results
 
