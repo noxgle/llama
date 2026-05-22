@@ -43,7 +43,7 @@ Key values:
 - `CTX=131072` (128K)
 - `NGLAYERS=999`
 - `SPEC_TYPE=draft-mtp`
-- `SPEC_DRAFT_N_MAX=1`
+- `SPEC_DRAFT_N_MAX=2`
 - `FLASHATTN=on`
 - `BATCH=1024`, `UBATCH=1024`
 
@@ -96,7 +96,7 @@ docker compose down && docker compose up -d
 | `BATCH` / `UBATCH` | Batch settings | `1024` / `1024` |
 | `THREADS` / `THREADS_BATCH` | CPU thread settings | `6` / `6` |
 | `SPEC_TYPE` | Speculative decoding mode | `draft-mtp` |
-| `SPEC_DRAFT_N_MAX` | MTP draft tokens per step | `1` |
+| `SPEC_DRAFT_N_MAX` | MTP draft tokens per step | `2` |
 
 ## API Endpoints
 

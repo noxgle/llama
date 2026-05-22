@@ -20,8 +20,8 @@
 set -e
 
 # Konfiguracja
-SERVER="ag@192.168.200.38"
-REMOTE_DIR="~/llama"
+SERVER="root@192.168.200.38"
+REMOTE_DIR="/opt/llama"
 LOCAL_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 # Kolory
