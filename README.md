@@ -40,7 +40,7 @@ Canonical production config file:
 Key values:
 
 - `MODEL=unsloth/Qwen3.6-35B-A3B-MTP-GGUF:UD-Q4_K_M`
-- `CTX=131072` (128K)
+- `CTX=196608` (192K)
 - `NGLAYERS=999`
 - `SPEC_TYPE=draft-mtp`
 - `SPEC_DRAFT_N_MAX=2`
@@ -50,7 +50,7 @@ Key values:
 Typical steady-state (after full startup stabilization):
 
 - Throughput: ~20–23 tok/s
-- VRAM: ~4.4–5.2 GiB / 6.0 GiB
+- VRAM: ~5.5–5.7 GiB / 6.0 GiB
 
 ## Quick Start
 
@@ -89,7 +89,7 @@ docker compose down && docker compose up -d
 | Variable | Description | Production value |
 |---|---|---|
 | `MODEL` | Hugging Face model selector | `unsloth/Qwen3.6-35B-A3B-MTP-GGUF:UD-Q4_K_M` |
-| `CTX` | Context length | `131072` |
+| `CTX` | Context length | `196608` |
 | `N_PREDICT` | Token cap (`-1` = unlimited) | `-1` |
 | `NGLAYERS` | Layers offloaded to GPU | `999` |
 | `FLASHATTN` | Flash Attention | `on` |

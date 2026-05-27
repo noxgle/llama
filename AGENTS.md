@@ -24,15 +24,15 @@
 
 ### Local .env != server .env
 - Local `.env`: stale Gemma 4 E4B config (Unsloth).
-- Server `.env`: Qwen3.6-35B-A3B-MTP Q4_K_M with CTX=128K, MTP on.
+- Server `.env`: Qwen3.6-35B-A3B-MTP Q4_K_M with CTX=192K, MTP on.
 - These diverge because `.env` never syncs. The server-side `configs/` is only updated via `sync.sh push`, but `.env` must be `cp`'d manually.
 
 ## Current production config (validated stable)
 - **Config file:** `configs/qwen3.6-35ba3b-mtp-unsloth.env`
 - **Model:** `localweights/Qwen3.6-35B-A3B-MTP-Q4_K_M-GGUF` (HF community quant)
-- **Context:** 131072 (128K)
+- **Context:** 196608 (192K)
 - **MTP:** `SPEC_TYPE=draft-mtp`, `SPEC_DRAFT_N_MAX=2` (~80% accept rate, ~21.7 tok/s)
-- **VRAM:** ~4493/6144 MiB, RAM: ~20/24 GiB
+- **VRAM:** ~5653/6144 MiB, RAM: ~20/24 GiB
 - Use this as the default reference. All Gemma 4 configs are legacy/archive.
 
 ## MTP speculative decoding
