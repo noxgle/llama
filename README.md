@@ -49,8 +49,8 @@ Key values:
 
 Typical steady-state (after full startup stabilization):
 
-- Throughput: ~20–23 tok/s
-- VRAM: ~5.5–5.7 GiB / 6.0 GiB
+- Throughput: ~20–23 tok/s (short prompts), ~18–19 tok/s (30K+ prompt prefill)
+- VRAM: ~5.5–5.7 GiB / 6.0 GiB (at 192K context)
 
 ## Quick Start
 
@@ -85,6 +85,8 @@ docker compose down && docker compose up -d
 ```
 
 ### Important environment variables
+
+> **CPUMOE performance note:** Setting `CPUMOE=exps=CPU` (current default) routes MoE expert weights through CPU, saving VRAM but reducing throughput. Setting `CPUMOE=` (empty) keeps all experts on GPU and improves throughput by ~2–5 tok/s, but increases VRAM usage. Adjust based on your VRAM headroom: with 192K context at ~5650 MiB, setting `CPUMOE=` is not recommended due to limited headroom.
 
 | Variable | Description | Production value |
 |---|---|---|
@@ -142,12 +144,16 @@ ssh root@192.168.200.38 'cd /opt/llama && docker compose up -d --build'
 HOST=root@192.168.200.38 PROJECT_DIR=/opt/llama bash scripts/benchmark-guarded-remote.sh
 ```
 
-### `sync.sh` caveat
+### `sync.sh` usage
 
-`sync.sh` still points to the wrong host/path (`ag@...:~/llama`).
+`sync.sh` targets `root@192.168.200.38:/opt/llama` (already corrected).
 
-- You can still use `push/pull/ssh` carefully.
-- Do **not** rely on `deploy/rebuild/restart/start/stop` from `sync.sh` until it is corrected.
+- `push` — sync local repo → server (excludes `.env`, `.git/`, `*.log`, `build/`)
+- `pull` — pull configs back from server
+- `status` — show container + GPU status
+- `health` — check health endpoint + VRAM + RAM
+
+> **Note:** `deploy` and `rebuild` use `docker compose restart/build` — for config changes requiring `.env` reload, use `stop` + `start` manually on the server instead.
 
 ## Post-Reboot Throughput Incident (Resolved)
 
@@ -252,12 +258,14 @@ nvidia-smi --query-gpu=memory.used,memory.total --format=csv,noheader
 ### Current profile (Qwen3.6 35B-A3B MTP Unsloth)
 
 | Context | MTP | Throughput | VRAM |
-|---|---|---:|---:|
+|---|---:|---:|
 | 16K | N_MAX=3 | ~20.1 tok/s | ~4043 MiB |
 | 32K | N_MAX=1 | ~20.9 tok/s | ~4047 MiB |
 | 128K | N_MAX=1 | ~21.7 tok/s | ~4493 MiB |
+| **192K** | **N_MAX=2** | **~22.4 tok/s*** | **~5650 MiB** |
 
-MTP acceptance rate is typically ~80%.
+MTP acceptance rate is typically ~80% (measured: 679/844 = 80% at 30K context).
+\* Throughput drops to ~18.7 tok/s with large prompts (e.g. 30K tokens prefill).
 
 ### Historical profiles
 
@@ -317,3 +325,9 @@ docker compose up -d
 
 - If MTP segfaults: check watchdog logs and restart stack (`down && up -d`).
 - If VRAM is saturated: reduce `CTX` or batch settings.
+
+### Empty response from Qwen models
+
+Qwen uses internal reasoning tokens (`reasoning_content`) before generating the visible response. If `max_tokens` is set too low, all tokens are consumed by reasoning and `content` comes back empty.
+
+**Fix:** Use `max_tokens >= 1024`, or set `"reasoning": false` in the request if the model supports it. For interactive use, streaming (`stream: true`) reveals content incrementally even when reasoning is active.
