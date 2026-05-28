@@ -30,7 +30,7 @@
 ## Current production config (validated stable)
 - **Config file:** `configs/qwen3.6-35ba3b-mtp-unsloth.env`
 - **Model:** `localweights/Qwen3.6-35B-A3B-MTP-Q4_K_M-GGUF` (HF community quant)
-- **Context:** 196608 (192K)
+- **Context:** 180224 (176K)
 - **MTP:** `SPEC_TYPE=draft-mtp`, `SPEC_DRAFT_N_MAX=2` (~80% accept rate, ~21.7 tok/s)
 - **VRAM:** ~5653/6144 MiB, RAM: ~20/24 GiB
 - Use this as the default reference. All Gemma 4 configs are legacy/archive.
