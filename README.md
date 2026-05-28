@@ -40,7 +40,7 @@ Canonical production config file:
 Key values:
 
 - `MODEL=unsloth/Qwen3.6-35B-A3B-MTP-GGUF:UD-Q4_K_M`
-- `CTX=196608` (192K)
+- `CTX=180224` (176K)
 - `NGLAYERS=999`
 - `SPEC_TYPE=draft-mtp`
 - `SPEC_DRAFT_N_MAX=2`
@@ -49,8 +49,8 @@ Key values:
 
 Typical steady-state (after full startup stabilization):
 
-- Throughput: ~20–23 tok/s (short prompts), ~18–19 tok/s (30K+ prompt prefill)
-- VRAM: ~5.5–5.7 GiB / 6.0 GiB (at 192K context)
+- Throughput: ~20–23 tok/s (short prompts), ~18–19 tok/s (30K+ prompt prefill), ~14–15 tok/s during sustained generation of 4K+ tokens (KV cache pressure on 6 GB VRAM)
+- VRAM: ~5.5–5.8 GiB / 6.0 GiB (at 176K context, varies with prompt cache accumulation)
 
 ## Quick Start
 
@@ -86,12 +86,12 @@ docker compose down && docker compose up -d
 
 ### Important environment variables
 
-> **CPUMOE performance note:** Setting `CPUMOE=exps=CPU` (current default) routes MoE expert weights through CPU, saving VRAM but reducing throughput. Setting `CPUMOE=` (empty) keeps all experts on GPU and improves throughput by ~2–5 tok/s, but increases VRAM usage. Adjust based on your VRAM headroom: with 192K context at ~5650 MiB, setting `CPUMOE=` is not recommended due to limited headroom.
+> **CPUMOE performance note:** Setting `CPUMOE=exps=CPU` (current default) routes MoE expert weights through CPU, saving VRAM but reducing throughput. Setting `CPUMOE=` (empty) keeps all experts on GPU and improves throughput by ~2–5 tok/s, but increases VRAM usage. Adjust based on your VRAM headroom: with 176K context at ~5555 MiB, setting `CPUMOE=` is not recommended due to limited headroom.
 
 | Variable | Description | Production value |
 |---|---|---|
 | `MODEL` | Hugging Face model selector | `unsloth/Qwen3.6-35B-A3B-MTP-GGUF:UD-Q4_K_M` |
-| `CTX` | Context length | `196608` |
+| `CTX` | Context length | `180224` |
 | `N_PREDICT` | Token cap (`-1` = unlimited) | `-1` |
 | `NGLAYERS` | Layers offloaded to GPU | `999` |
 | `FLASHATTN` | Flash Attention | `on` |
@@ -258,14 +258,16 @@ nvidia-smi --query-gpu=memory.used,memory.total --format=csv,noheader
 ### Current profile (Qwen3.6 35B-A3B MTP Unsloth)
 
 | Context | MTP | Throughput | VRAM |
-|---|---:|---:|
+|---|---:|---:|---:|
 | 16K | N_MAX=3 | ~20.1 tok/s | ~4043 MiB |
 | 32K | N_MAX=1 | ~20.9 tok/s | ~4047 MiB |
 | 128K | N_MAX=1 | ~21.7 tok/s | ~4493 MiB |
-| **192K** | **N_MAX=2** | **~22.4 tok/s*** | **~5650 MiB** |
+| **176K** | **N_MAX=2** | **~23.1 tok/s** | **~5555 MiB** |
+| 192K\* | N_MAX=2 | ~22.4 tok/s | ~5650 MiB |
 
 MTP acceptance rate is typically ~80% (measured: 679/844 = 80% at 30K context).
-\* Throughput drops to ~18.7 tok/s with large prompts (e.g. 30K tokens prefill).
+Throughput degrades to ~14–15 tok/s during sustained generation of 4K+ tokens per slot (KV cache pressure). Recovers to ~23 tok/s after slot release.
+\* 192K deprecated — reduced to 176K due to VRAM pressure from prompt cache accumulation on 6 GB.
 
 ### Historical profiles
 
