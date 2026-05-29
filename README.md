@@ -177,6 +177,7 @@ docker compose down && docker compose up -d
 | `FLASHATTN` | Flash Attention | `on` |
 | `BATCH` / `UBATCH` | Batch settings | `1024` / `1024` |
 | `THREADS` / `THREADS_BATCH` | CPU thread settings | `6` / `6` |
+| `CTX_CHECKPOINTS` | KV context checkpoint slots per prompt | `4` |
 | `SPEC_TYPE` | Speculative decoding mode | `draft-mtp` |
 | `SPEC_DRAFT_N_MAX` | MTP draft tokens per step | `2` |
 

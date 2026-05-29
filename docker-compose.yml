@@ -59,6 +59,8 @@ services:
       - "-ctv"
       - "${CACHE_TYPE_V:-q4_0}"
       - "--no-mmap"
+      - "--ctx-checkpoints"
+      - "${CTX_CHECKPOINTS:-4}"
       - "--no-mmproj"
       # MTP speculative decoding (upstream PR #22673)
       - "--spec-type"
