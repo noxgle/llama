@@ -24,8 +24,8 @@ This repository operates on:
 ### Hardware and Topology
 
 - **Runtime:** Debian 13 LXC on Proxmox
-- **GPU:** NVIDIA GTX 1060 6GB
-- **RAM:** 24 GB
+- **GPU:** NVIDIA RTX A2000 6GB
+- **RAM:** 30 GB
 - **CPU:** 6 cores
 - **Active project path:** `/opt/llama`
 
@@ -276,6 +276,7 @@ MTP acceptance rate is typically ~80% (measured: 679/844 = 80% at 30K context).
 Throughput degrades to ~14–15 tok/s during sustained generation of 4K+ tokens per slot (KV cache pressure). Recovers to ~23 tok/s after slot release.
 \* 176K deprecated — reduced to 160K due to MTP CUDA OOM on 6 GB.
 † 192K deprecated — reduced due to VRAM pressure.
+‡ GPU upgraded from GTX 1060 6GB (Pascal) to RTX A2000 6GB (Ampere, Tensor Cores). Prefill speed improved from ~130 to ~442 tok/s (~3.4×). Throughput improved from ~24.1 to ~28.7 tok/s.
 
 ### Historical profiles
 
