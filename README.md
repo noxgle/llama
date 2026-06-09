@@ -43,12 +43,12 @@ Key values:
 - `SPEC_TYPE=draft-mtp`
 - `SPEC_DRAFT_N_MAX=2`
 - `FLASHATTN=on`
-- `BATCH=1024`, `UBATCH=1024`
+- `BATCH=512`, `UBATCH=512`
 
 Typical steady-state (after full startup stabilization):
 
-- Throughput: ~20–23 tok/s (short prompts), ~18–19 tok/s (30K+ prompt prefill), ~14–15 tok/s during sustained generation of 4K+ tokens (KV cache pressure on 6 GB VRAM)
-- VRAM: ~5.5–5.8 GiB / 6.0 GiB (at 160K context, varies with prompt cache accumulation)
+- Throughput: ~24–28 tok/s (short prompts), ~18–19 tok/s (30K+ prompt prefill), ~14–15 tok/s during sustained generation of 4K+ tokens (KV cache pressure on 6 GB VRAM)
+- VRAM: ~4.5–4.8 GiB / 6.0 GiB (at 160K context, BATCH=512, varies with prompt cache accumulation)
 
 ---
 
@@ -166,7 +166,7 @@ docker compose down && docker compose up -d
 
 ### Important environment variables
 
-> **CPUMOE performance note:** Setting `CPUMOE=exps=CPU` (current default) routes MoE expert weights through CPU, saving VRAM but reducing throughput. Setting `CPUMOE=` (empty) keeps all experts on GPU and improves throughput by ~2–5 tok/s, but increases VRAM usage. Adjust based on your VRAM headroom: with 160K context at ~5491 MiB, setting `CPUMOE=` is not recommended due to limited headroom.
+> **CPUMOE performance note:** Setting `CPUMOE=exps=CPU` (current default) routes MoE expert weights through CPU, saving VRAM but reducing throughput. Setting `CPUMOE=` (empty) keeps all experts on GPU and improves throughput by ~2–5 tok/s, but increases VRAM usage. Adjust based on your VRAM headroom: with 160K context at ~4537 MiB (BATCH=512), setting `CPUMOE=` is not recommended due to limited headroom.
 
 | Variable | Description | Production value |
 |---|---|---|
@@ -268,7 +268,7 @@ systemctl enable --now llama-gpu-watchdog.timer
 | 16K | N_MAX=3 | ~20.1 tok/s | ~4043 MiB |
 | 32K | N_MAX=1 | ~20.9 tok/s | ~4047 MiB |
 | 128K | N_MAX=1 | ~21.7 tok/s | ~4493 MiB |
-| **160K** | **N_MAX=2** | **~24.1 tok/s** | **~5491 MiB** |
+| **160K** | **N_MAX=2** | **~28.7 tok/s** | **~4537 MiB** |
 | 176K\* | N_MAX=2 | ~23.1 tok/s | ~5555 MiB |
 | 192K† | N_MAX=2 | ~22.4 tok/s | ~5650 MiB |
 
