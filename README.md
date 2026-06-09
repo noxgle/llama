@@ -175,7 +175,7 @@ docker compose down && docker compose up -d
 | `N_PREDICT` | Token cap (`-1` = unlimited) | `-1` |
 | `NGLAYERS` | Layers offloaded to GPU | `999` |
 | `FLASHATTN` | Flash Attention | `on` |
-| `BATCH` / `UBATCH` | Batch settings | `1024` / `1024` |
+| `BATCH` / `UBATCH` | Batch settings | `512` / `512` |
 | `THREADS` / `THREADS_BATCH` | CPU thread settings | `6` / `6` |
 | `CTX_CHECKPOINTS` | KV context checkpoint slots per prompt | `4` |
 | `SPEC_TYPE` | Speculative decoding mode | `draft-mtp` |
