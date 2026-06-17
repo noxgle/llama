@@ -6,8 +6,8 @@
 
 ## Deployment gotchas (critical)
 
-### Server path mismatch (known bug)
-`sync.sh` targets `ag@192.168.200.38:~/llama`. Real server is `root@192.168.200.38:/opt/llama`. **All manual `ssh`/`scp` must use `root@192.168.200.38` and `/opt/llama` paths.** `sync.sh` commands like `deploy`, `rebuild`, `restart` etc. will fail or target the wrong host — do not rely on them without fixing first.
+### ~~Server path mismatch (known bug)~~ (FIXED)
+`sync.sh` previously targeted `ag@...:~/llama` but has been corrected to `root@192.168.200.38:/opt/llama`. All `ssh`/`scp` commands now use the correct target. The script commands (`deploy`, `rebuild`, `restart`) work as expected.
 
 ### .env is never synced
 - `.env` is in `.gitignore`.
@@ -29,10 +29,11 @@
 
 ## Current production config (validated stable)
 - **Config file:** `configs/qwen3.6-35ba3b-mtp-unsloth.env`
-- **Model:** `localweights/Qwen3.6-35B-A3B-MTP-Q4_K_M-GGUF` (HF community quant)
+- **Model:** `unsloth/Qwen3.6-35B-A3B-MTP-GGUF:UD-Q4_K_M` (HF Unsloth dynamic GGUF)
 - **Context:** 163840 (160K)
-- **MTP:** `SPEC_TYPE=draft-mtp`, `SPEC_DRAFT_N_MAX=2` (~80% accept rate, ~21.7 tok/s)
-- **VRAM:** ~5653/6144 MiB, RAM: ~20/24 GiB
+- **MTP:** `SPEC_TYPE=draft-mtp`, `SPEC_DRAFT_N_MAX=2` (~76–80% accept rate, ~29.2 tok/s)
+- **VRAM:** ~4483/6144 MiB, RAM: ~20/30 GiB
+- **LLama.cpp commit:** `8086439` (deployed 2026-06-17), `backend_sampling=1` auto-enabled (PR #23287)
 - Use this as the default reference. All Gemma 4 configs are legacy/archive.
 
 ## MTP speculative decoding

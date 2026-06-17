@@ -47,8 +47,8 @@ Key values:
 
 Typical steady-state (after full startup stabilization):
 
-- Throughput: ~24–28 tok/s (short prompts), ~18–19 tok/s (30K+ prompt prefill), ~14–15 tok/s during sustained generation of 4K+ tokens (KV cache pressure on 6 GB VRAM)
-- VRAM: ~4.5–4.8 GiB / 6.0 GiB (at 160K context, BATCH=512, varies with prompt cache accumulation)
+- Throughput: ~26–29 tok/s (short prompts), ~18–19 tok/s (30K+ prompt prefill), ~14–15 tok/s during sustained generation of 4K+ tokens (KV cache pressure on 6 GB VRAM)
+- VRAM: ~4.4–4.8 GiB / 6.0 GiB (at 160K context, BATCH=512, varies with prompt cache accumulation)
 
 ---
 
@@ -166,7 +166,7 @@ docker compose down && docker compose up -d
 
 ### Important environment variables
 
-> **CPUMOE performance note:** Setting `CPUMOE=exps=CPU` (current default) routes MoE expert weights through CPU, saving VRAM but reducing throughput. Setting `CPUMOE=` (empty) keeps all experts on GPU and improves throughput by ~2–5 tok/s, but increases VRAM usage. Adjust based on your VRAM headroom: with 160K context at ~4537 MiB (BATCH=512), setting `CPUMOE=` is not recommended due to limited headroom.
+> **CPUMOE performance note:** Setting `CPUMOE=exps=CPU` (current default) routes MoE expert weights through CPU, saving VRAM but reducing throughput. Setting `CPUMOE=` (empty) keeps all experts on GPU and improves throughput by ~2–5 tok/s, but increases VRAM usage. Adjust based on your VRAM headroom: with 160K context at ~4483 MiB (BATCH=512), setting `CPUMOE=` is not recommended due to limited headroom.
 
 | Variable | Description | Production value |
 |---|---|---|
@@ -268,15 +268,16 @@ systemctl enable --now llama-gpu-watchdog.timer
 | 16K | N_MAX=3 | ~20.1 tok/s | ~4043 MiB |
 | 32K | N_MAX=1 | ~20.9 tok/s | ~4047 MiB |
 | 128K | N_MAX=1 | ~21.7 tok/s | ~4493 MiB |
-| **160K** | **N_MAX=2** | **~28.7 tok/s** | **~4537 MiB** |
+| **160K** | **N_MAX=2** | **~29.2 tok/s** | **~4483 MiB** |
 | 176K\* | N_MAX=2 | ~23.1 tok/s | ~5555 MiB |
 | 192K† | N_MAX=2 | ~22.4 tok/s | ~5650 MiB |
 
-MTP acceptance rate is typically ~80% (measured: 679/844 = 80% at 30K context).
+MTP acceptance rate is typically ~76–80% (measured: 679/844 = 80% at 30K context; 380/500 = 76% at short context 17.06.2026).
+Upstream improvements (PR #23287) enable `backend_sampling=1` — MTP draft sampling offloaded to CUDA backend, reducing host synchronisation overhead.
 Throughput degrades to ~14–15 tok/s during sustained generation of 4K+ tokens per slot (KV cache pressure). Recovers to ~23 tok/s after slot release.
 \* 176K deprecated — reduced to 160K due to MTP CUDA OOM on 6 GB.
 † 192K deprecated — reduced due to VRAM pressure.
-‡ GPU upgraded from GTX 1060 6GB (Pascal) to RTX A2000 6GB (Ampere, Tensor Cores). Prefill speed improved from ~130 to ~442 tok/s (~3.4×). Throughput improved from ~24.1 to ~28.7 tok/s.
+‡ GPU upgraded from GTX 1060 6GB (Pascal) to RTX A2000 6GB (Ampere, Tensor Cores). Prefill speed improved from ~130 to ~442 tok/s (~3.4×). Throughput improved from ~24.1 to ~29.2 tok/s.
 
 ### Historical profiles
 
@@ -293,6 +294,7 @@ Throughput degrades to ~14–15 tok/s during sustained generation of 4K+ tokens 
 
 - Source: `ggml-org/llama.cpp.git`
 - Ref: `master` (via `LLAMA_REF`)
+- Current deployed commit: `8086439` (2026-06-17, includes PR #22673 MTP + follow-up #23269, #23287)
 - CUDA base image: `nvidia/cuda:12.4.0-devel-ubuntu22.04`
 - Build flag: `-DGGML_CUDA_NCCL=OFF`
 
