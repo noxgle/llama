@@ -184,22 +184,37 @@ cp configs/gemma4-26b-q4-k-m-mtp.env .env
 docker compose up -d
 ```
 
-### Server-side `.env` switch (authoritative)
+### Server-side: `llama.sh` control script (recommended)
 
-> `.env` is gitignored and excluded by `sync.sh push`, so active runtime must be switched directly on the server.
+> Replaces old compose-based `.env` switching. Uses `docker run` directly.
 
 ```bash
 ssh root@192.168.200.38
-# Qwen3.6-35B (production)
-cp /opt/llama/configs/qwen3.6-35ba3b-mtp-unsloth.env /opt/llama/.env
+# Start Qwen3.6 (production, port 8089)
+/opt/llama/llama.sh start qwen
 
-# Gemma 4 26B A4B (alternative)
-cp /opt/llama/configs/gemma4-26b-q4-k-m-mtp.env /opt/llama/.env
+# Switch to Gemma4 (port 8090) — stops Qwen first
+/opt/llama/llama.sh start gemma4
 
-docker compose down && docker compose up -d
+# Check status
+/opt/llama/llama.sh status
+
+# Stop all
+/opt/llama/llama.sh stop
+
+# Tail logs
+/opt/llama/llama.sh logs qwen
 ```
 
-> **Note:** Gemma 4 uses local GGUF symlinks (`MODEL_FLAG=-m`, `DRAFT_FLAG=-md`). Before switching, ensure the model blobs exist in the HF cache or pre-download them. See `AGENTS.md` → "HF download bug" for details.
+The script reads model config from `configs/<model>.env` and passes the same flags as the old compose `command:` section. Image source: `ghcr.io/noxgle/llama-server:latest` (or override with `LLAMA_IMAGE`).
+
+Systemd (optional):
+```bash
+cp deploy/systemd/llama@.service /etc/systemd/system/
+systemctl enable --now llama@qwen   # auto-start on boot
+```
+
+> **Note:** Gemma 4 uses local GGUF symlinks (`MODEL_FLAG=-m`, `DRAFT_FLAG=-md`). Ensure the model blobs exist in the HF cache first. See `AGENTS.md` → "HF download bug" for details.
 
 ### Important environment variables
 
@@ -242,11 +257,14 @@ docker compose logs -f
 # Health
 ssh root@192.168.200.38 'curl -s http://localhost:8089/health'
 
-# Restart after config change
-ssh root@192.168.200.38 'cd /opt/llama && docker compose down && docker compose up -d'
+# Start/stop models (llama.sh wrapper)
+ssh root@192.168.200.38 '/opt/llama/llama.sh start qwen'
+ssh root@192.168.200.38 '/opt/llama/llama.sh start gemma4'
+ssh root@192.168.200.38 '/opt/llama/llama.sh stop'
+ssh root@192.168.200.38 '/opt/llama/llama.sh status'
 
-# Rebuild remotely
-ssh root@192.168.200.38 'cd /opt/llama && docker compose up -d --build'
+# Restart after config edit (sync.sh push first, then restart)
+ssh root@192.168.200.38 '/opt/llama/llama.sh restart qwen'
 
 # Guarded benchmark (fails fast on GPU fallback)
 HOST=root@192.168.200.38 PROJECT_DIR=/opt/llama bash scripts/benchmark-guarded-remote.sh
@@ -344,6 +362,38 @@ Throughput degrades to ~14–15 tok/s during sustained generation of 4K+ tokens 
 - Build flag: `-DGGML_CUDA_NCCL=OFF`
 - **b9770 key PRs:** flash mtp3 (#24340), CUDA PDL MoE (#24087), Step3.5 MTP fix (#24060), MTP verify batch (#21845)
 - **A/B benchmark vs 8086439:** Qwen3.6 +3% (29.2→30.1), Gemma4 +7.5% (25.5→27.4)
+
+---
+
+## CI/CD (GitHub Container Registry)
+
+Build workflow: `.github/workflows/build.yml`
+
+| Trigger | Tags pushed |
+|---|---|
+| Push to `master` | `ghcr.io/noxgle/llama-server:latest`, `:sha-<commit>` |
+| Tag `b*` | `ghcr.io/noxgle/llama-server:<tag>` |
+
+**First-time setup:**
+1. On the server, authenticate Docker with GHCR:
+   ```bash
+   echo <GITHUB_TOKEN> | docker login ghcr.io -u <user> --password-stdin
+   ```
+2. The `llama.sh` script uses `ghcr.io/noxgle/llama-server:latest` by default.
+
+**Self-hosted runner (recommended):**
+Build on Proxmox (6-core, ~60-90 min) → push to GHCR → pull on target LXCs.
+Install runner:
+```bash
+# On Proxmox host, as root:
+mkdir /opt/actions-runner && cd /opt/actions-runner
+curl -O -L https://github.com/actions/runner/releases/latest/download/actions-runner-linux-x64-2.322.0.tar.gz
+tar xzf actions-runner-linux-x64-*.tar.gz
+./config.sh --url https://github.com/noxgle/llama --token <TOKEN>
+./run.sh
+```
+Set repository variable `SELF_HOSTED_RUNNER=self-hosted` to use it.
+Without this variable, the workflow falls back to `ubuntu-latest` (no GPU, slower build).
 
 ---
 

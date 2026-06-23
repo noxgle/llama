@@ -1,0 +1,99 @@
+# Build llama-server Docker image and push to GitHub Container Registry
+#
+# Triggers:
+#   - push to master  → ghcr.io/noxgle/llama-server:latest + :sha-<commit>
+#   - tag b*          → ghcr.io/noxgle/llama-server:<tag>
+#
+# Builds with CUDA cross-compilation (no GPU needed at build time).
+# Multi-stage Dockerfile: builder (CUDA toolkit) → runtime (slim CUDA runtime).
+#
+# Runtime note: the compiled server needs NVIDIA driver + libcuda.so.1 on
+# the target host (standard for any CUDA workload).
+#
+# Performance:
+#   - Self-hosted runner (6-core): ~60-90 min
+#   - GitHub-hosted runner (2-core): ~3-4 h (use cache-from to speed up)
+
+name: Build llama-server
+
+on:
+  push:
+    branches: [master]
+    tags: ['b*']
+  workflow_dispatch:
+    inputs:
+      llama_ref:
+        description: 'LLAMA_REF (tag, branch, or commit)'
+        required: false
+        default: 'master'
+      build_jobs:
+        description: 'Parallel build jobs'
+        required: false
+        default: '4'
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build:
+    runs-on: ${{ github.repository_owner == 'noxgle' && vars.SELF_HOSTED_RUNNER || 'ubuntu-latest' }}
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=tag
+            type=sha,prefix=sha-,format=short
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/master' }}
+          flavor: |
+            latest=false
+
+      - name: Determine build args
+        id: args
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "llama_ref=${{ inputs.llama_ref }}" >> "$GITHUB_OUTPUT"
+            echo "build_jobs=${{ inputs.build_jobs }}" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.ref_type }}" = "tag" ]; then
+            echo "llama_ref=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+            echo "build_jobs=4" >> "$GITHUB_OUTPUT"
+          else
+            echo "llama_ref=master" >> "$GITHUB_OUTPUT"
+            echo "build_jobs=4" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            LLAMA_REF=${{ steps.args.outputs.llama_ref }}
+            BUILD_JOBS=${{ steps.args.outputs.build_jobs }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          # On self-hosted runner, also export to local Docker store for
+          # immediate use; on GH-hosted it's pushed directly to registry.
+          load: ${{ vars.SELF_HOSTED_RUNNER != '' }}

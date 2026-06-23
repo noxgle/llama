@@ -1,0 +1,26 @@
+[Unit]
+Description=llama.cpp server (%I)
+Documentation=https://github.com/ggml-org/llama.cpp
+Requires=docker.service
+After=docker.service network-online.target
+StartLimitIntervalSec=120
+StartLimitBurst=3
+
+[Service]
+Type=exec
+ExecStart=/opt/llama/llama.sh start %i
+ExecStop=/opt/llama/llama.sh stop
+Restart=on-failure
+RestartSec=15
+TimeoutStopSec=30
+
+# Security hardening
+ProtectSystem=strict
+ReadOnlyPaths=/opt/llama
+ReadWritePaths=/opt/llama/models
+BindPaths=/var/run/docker.sock:/var/run/docker.sock
+PrivateTmp=true
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

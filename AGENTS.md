@@ -17,10 +17,13 @@
   # On server as root:
   cp /opt/llama/configs/<name>.env /opt/llama/.env
   docker compose down && docker compose up -d
+  # OR (new approach):
+  /opt/llama/llama.sh start qwen   # reads configs directly, no .env needed
   ```
 
 ### .env changes require down+up, not restart
 `docker compose restart` does NOT re-read `.env`. Always do `docker compose down && docker compose up -d`.
+The `llama.sh` script avoids this issue entirely — it reads configs directly via `docker run`.
 
 ### HF download bug (get_hf_plan)
 - The deployed builds have a bug where `get_hf_plan` fails for certain quant names (e.g., `:UD-Q8_K_XL`, `:Q8_0`) even though the file exists in the cache. Workaround: use `MODEL_FLAG=-m` with a local symlink path and `DRAFT_FLAG=-md` for draft models.
@@ -93,6 +96,36 @@
   - **Gemma4 Q4_K_M+MTP:** 25.5 → 27.4 tok/s (+7.5%)
   - **Qwen3.6+MTP:** 29.2 → 30.1 tok/s (+3%)
   - Key PRs in b9770: flash mtp3 (#24340), CUDA PDL MoE (#24087), Step3.5 MTP fix (#24060), MTP verify batch (#21845).
+
+## Production scripts
+
+### `llama.sh` (docker run wrapper, replaces compose)
+- **Location:** `/opt/llama/llama.sh` (synced via `sync.sh push`)
+- **Usage:**
+  ```bash
+  ./llama.sh start qwen       # Qwen3.6 on port 8089
+  ./llama.sh start gemma4     # Gemma4 on port 8090
+  ./llama.sh stop             # Stop both
+  ./llama.sh restart qwen     # Stop + start
+  ./llama.sh status           # List containers
+  ./llama.sh logs qwen        # Tail logs
+  ./llama.sh pull             # Pull latest image
+  ```
+- Reads `configs/<model>.env` and translates to `docker run` flags.
+- Image: `ghcr.io/noxgle/llama-server:latest` (override with `LLAMA_IMAGE`).
+- Stops ALL containers named `llama*` before start (safe switching).
+
+### Systemd (optional)
+```bash
+cp deploy/systemd/llama@.service /etc/systemd/system/
+systemctl enable --now llama@qwen
+```
+
+### CI/CD
+- `.github/workflows/build.yml` — build on push to `master` or tag `b*`.
+- Pushes to `ghcr.io/noxgle/llama-server`.
+- CUDA cross-compile on standard runner; self-hosted runner recommended (6-core).
+- Set `SELF_HOSTED_RUNNER=self-hosted` repo variable to use Proxmox runner.
 
 ## Operational commands
 ```bash
