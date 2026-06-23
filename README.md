@@ -47,7 +47,7 @@ Key values:
 
 Typical steady-state (after full startup stabilization):
 
-- Throughput: ~26–29 tok/s (short prompts), ~18–19 tok/s (30K+ prompt prefill), ~14–15 tok/s during sustained generation of 4K+ tokens (KV cache pressure on 6 GB VRAM)
+- Throughput: **~30.1 tok/s** (short prompts), ~18–19 tok/s (30K+ prompt prefill), ~14–15 tok/s during sustained generation of 4K+ tokens (KV cache pressure on 6 GB VRAM)
 - VRAM: ~4.4–4.8 GiB / 6.0 GiB (at 160K context, BATCH=512, varies with prompt cache accumulation)
 
 ### Gemma 4 26B Alternative
@@ -69,9 +69,9 @@ Key values:
 
 Typical steady-state:
 
-- Throughput: **~26 tok/s** (short prompts), ~44 tok/s prefill
+- Throughput: **~27.4 tok/s** (short prompts), ~46 tok/s prefill
 - VRAM: **~5.4 GiB / 6.0 GiB** (at 128K context, BATCH=512), RAM: ~15/30 GiB
-- Draft acceptance rate: **~90%**
+- Draft acceptance rate: **~85%**
 
 See `AGENTS.md` → "Gemma 4 test results" for benchmark details and the higher-quality but RAM-constrained Q8_K_XL variant (`configs/gemma4-26b-q8_0-mtp.env`).
 
@@ -175,10 +175,10 @@ ssh root@192.168.200.38 'docker ps && docker stats --no-stream'
 ### Local `.env` switch
 
 ```bash
-# Qwen3.6-35B (production, ~29 tok/s, 160K)
+# Qwen3.6-35B (production, ~30.1 tok/s, 160K)
 cp configs/qwen3.6-35ba3b-mtp-unsloth.env .env
 
-# Gemma 4 26B A4B (alternative, ~26 tok/s, 128K)
+# Gemma 4 26B A4B (alternative, ~27.4 tok/s, 128K)
 cp configs/gemma4-26b-q4-k-m-mtp.env .env
 
 docker compose up -d
@@ -308,7 +308,7 @@ systemctl enable --now llama-gpu-watchdog.timer
 | 16K | N_MAX=3 | ~20.1 tok/s | ~4043 MiB |
 | 32K | N_MAX=1 | ~20.9 tok/s | ~4047 MiB |
 | 128K | N_MAX=1 | ~21.7 tok/s | ~4493 MiB |
-| **160K** | **N_MAX=2** | **~29.2 tok/s** | **~4483 MiB** |
+| **160K** | **N_MAX=2** | **~30.1 tok/s** | **~4473 MiB** |
 | 176K\* | N_MAX=2 | ~23.1 tok/s | ~5555 MiB |
 | 192K† | N_MAX=2 | ~22.4 tok/s | ~5650 MiB |
 
@@ -317,13 +317,13 @@ Upstream improvements (PR #23287) enable `backend_sampling=1` — MTP draft samp
 Throughput degrades to ~14–15 tok/s during sustained generation of 4K+ tokens per slot (KV cache pressure). Recovers to ~23 tok/s after slot release.
 \* 176K deprecated — reduced to 160K due to MTP CUDA OOM on 6 GB.
 † 192K deprecated — reduced due to VRAM pressure.
-‡ GPU upgraded from GTX 1060 6GB (Pascal) to RTX A2000 6GB (Ampere, Tensor Cores). Prefill speed improved from ~130 to ~442 tok/s (~3.4×). Throughput improved from ~24.1 to ~29.2 tok/s.
+‡ GPU upgraded from GTX 1060 6GB (Pascal) to RTX A2000 6GB (Ampere, Tensor Cores). Prefill speed improved from ~130 to ~442 tok/s (~3.4×). Throughput improved from ~24.1 to ~30.1 tok/s.
 
 ### Gemma 4 26B profile
 
 | Config | MTP | Context | Throughput | VRAM | RAM | Notes |
 |---|---|---|---:|---:|---:|---|
-| `gemma4-26b-q4-k-m-mtp.env` | `draft-mtp` N_MAX=2 | 128K | **~26 tok/s** | ~5411 MiB | ~15 GiB | 🏆 Recommended |
+| `gemma4-26b-q4-k-m-mtp.env` | `draft-mtp` N_MAX=2 | 128K | **~27.4 tok/s** | ~5415 MiB | ~15 GiB | 🏆 Recommended |
 | `gemma4-26b-q8_0-mtp.env` | `draft-mtp` N_MAX=2 | 16K | **~11.3 tok/s** | ~4000 MiB | ~27 GiB | Near-lossless, RAM-tight |
 
 ### Historical profiles
@@ -338,10 +338,12 @@ Throughput degrades to ~14–15 tok/s during sustained generation of 4K+ tokens 
 ## Build Info
 
 - Source: `ggml-org/llama.cpp.git`
-- Ref: `master` (via `LLAMA_REF`)
-- Current deployed commit: `8086439` (2026-06-17, includes PR #22673 MTP + follow-up #23269, #23287)
+- Ref: `LLAMA_REF=b9770` (commit `75ad0b2`, 2026-06-23)
+- Previous commit: `8086439` (2026-06-17, replaced with b9770)
 - CUDA base image: `nvidia/cuda:12.4.0-devel-ubuntu22.04`
 - Build flag: `-DGGML_CUDA_NCCL=OFF`
+- **b9770 key PRs:** flash mtp3 (#24340), CUDA PDL MoE (#24087), Step3.5 MTP fix (#24060), MTP verify batch (#21845)
+- **A/B benchmark vs 8086439:** Qwen3.6 +3% (29.2→30.1), Gemma4 +7.5% (25.5→27.4)
 
 ---
 

@@ -23,7 +23,7 @@
 `docker compose restart` does NOT re-read `.env`. Always do `docker compose down && docker compose up -d`.
 
 ### HF download bug (get_hf_plan)
-- The deployed build (commit `8086439`) has a bug where `get_hf_plan` fails for certain quant names (e.g., `:UD-Q8_K_XL`, `:Q8_0`) even though the file exists in the cache. Workaround: use `MODEL_FLAG=-m` with a local symlink path and `DRAFT_FLAG=-md` for draft models.
+- The deployed builds have a bug where `get_hf_plan` fails for certain quant names (e.g., `:UD-Q8_K_XL`, `:Q8_0`) even though the file exists in the cache. Workaround: use `MODEL_FLAG=-m` with a local symlink path and `DRAFT_FLAG=-md` for draft models.
 - See `docker-compose.yml` for the dual-flag support (`-hf` for HF repos, `-m` for local files).
 - Symlinks to cached HF blobs are stored in `/opt/llama/models/` on the server (bind-mounted to `/models` in container).
 
@@ -36,9 +36,10 @@
 - **Config file:** `configs/qwen3.6-35ba3b-mtp-unsloth.env`
 - **Model:** `unsloth/Qwen3.6-35B-A3B-MTP-GGUF:UD-Q4_K_M` (HF Unsloth dynamic GGUF)
 - **Context:** 163840 (160K)
-- **MTP:** `SPEC_TYPE=draft-mtp`, `SPEC_DRAFT_N_MAX=2` (~76–80% accept rate, ~29.2 tok/s)
-- **VRAM:** ~4483/6144 MiB, RAM: ~20/30 GiB
-- **LLama.cpp commit:** `8086439` (deployed 2026-06-17), `backend_sampling=1` auto-enabled (PR #23287)
+- **MTP:** `SPEC_TYPE=draft-mtp`, `SPEC_DRAFT_N_MAX=2` (~79% accept rate, ~30.1 tok/s)
+- **VRAM:** ~4473/6144 MiB, RAM: ~20/30 GiB
+- **LLama.cpp commit:** `75ad0b2` (tag `b9770`, deployed 2026-06-23, built locally & scp'd)
+- **Benchmark (A/B vs 8086439):** +3% throughput (29.2→30.1 tok/s)
 - Use this as the default reference. All Gemma 4 configs are legacy/archive.
 
 ## Gemma 4 test results (2026-06-23)
@@ -51,20 +52,21 @@
 - **NGLAYERS=999** (all non-expert layers on GPU, experts on CPU via `CPUMOE=exps=CPU`)
 - **Context:** 131072 (128K)
 - **BATCH=512**, **UBATCH=512**
-- **SPEC_TYPE=draft-mtp**, `SPEC_DRAFT_N_MAX=2` (~90% accept rate, ~26 tok/s)
-- **VRAM:** ~5411/6138 MiB, RAM: ~15/30 GiB
-- **GPU_LAYERS_DRAFT=99** — draft model (Q8_0-MTP, 462 MB) w pełni na GPU; przyspiesza inferencję z ~20.9 → **~26 tok/s** (+24%)
-- **Notes:** `draft-simple` crashes on build 8086439 (PR #20277). Use `draft-mtp` instead.
+- **SPEC_TYPE=draft-mtp**, `SPEC_DRAFT_N_MAX=2` (~85% accept rate, ~27.4 tok/s)
+- **VRAM:** ~5415/6138 MiB, RAM: ~15/30 GiB
+- **GPU_LAYERS_DRAFT=99** — draft model (Q8_0-MTP, 462 MB) w pełni na GPU; przyspiesza inferencję z ~20.9 → **~27.4 tok/s** (+31%)
+- **Benchmark (b9770 vs 8086439):** +7.5% throughput (25.5→27.4 tok/s)
+- **Notes:** `draft-simple` crashes on build 8086439 and on b9770 (PR #20277 still unpatched). Use `draft-mtp` instead.
 
 ### Working: UD-Q8_K_XL + Q8_0-MTP draft (`draft-mtp`)
 - **Config file:** `configs/gemma4-26b-q8_0-mtp.env`
 - **Model:** UD-Q8_K_XL (~27.6 GB, near-lossless quality)
-- **Throughput:** ~11.3 tok/s (90% draft accept)
+- **Throughput:** ~11.3 tok/s (90% draft accept) — not re-tested on b9770
 - **RAM:** ~27/30 GiB (very tight, 4 Gi available)
 - **Notes:** Higher quality than Q4_K_M, but much slower and RAM-constrained.
 
 ### Blocked
-- `draft-simple` crashes on this build (PR #20277, `failed to process speculative batch`).
+- `draft-simple` crashes on all builds tested (8086439 and b9770, PR #20277, `failed to process speculative batch`). Loads fine, crashes on first inference request.
 - HF download (`get_hf_plan`) fails for non-standard quant names. Workaround: local files via symlinks (`-m` flag).
 
 ## MTP speculative decoding
@@ -80,6 +82,17 @@
 - Source: `ggml-org/llama.cpp.git`, pinned by `LLAMA_REF` compose build arg (default `master`).
 - `-DGGML_CUDA_NCCL=OFF` — single-GPU host, avoid `libnccl.so.2` runtime issues.
 - Do not modify `Dockerfile` unless explicitly asked.
+- **Deployment method:** build locally, compress to tar.gz, scp, pipe directly into `docker load`:
+  ```bash
+  docker save llama-llama-server:latest | gzip > /tmp/llama-<tag>.tar.gz
+  scp /tmp/llama-<tag>.tar.gz root@192.168.200.38:/tmp/
+  ssh root@192.168.200.38 'gzip -dc /tmp/llama-<tag>.tar.gz | docker load && rm /tmp/llama-<tag>.tar.gz'
+  ```
+  Avoids writing uncompressed tar on server (saves ~8 GB temp space). Server must have enough free disk for compressed file + Docker layer extraction (~12-13 GB for an 8.97 GB image).
+- **Build benchmark (b9770 vs 8086439):**
+  - **Gemma4 Q4_K_M+MTP:** 25.5 → 27.4 tok/s (+7.5%)
+  - **Qwen3.6+MTP:** 29.2 → 30.1 tok/s (+3%)
+  - Key PRs in b9770: flash mtp3 (#24340), CUDA PDL MoE (#24087), Step3.5 MTP fix (#24060), MTP verify batch (#21845).
 
 ## Operational commands
 ```bash
