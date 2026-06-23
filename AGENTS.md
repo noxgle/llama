@@ -22,9 +22,14 @@
 ### .env changes require down+up, not restart
 `docker compose restart` does NOT re-read `.env`. Always do `docker compose down && docker compose up -d`.
 
+### HF download bug (get_hf_plan)
+- The deployed build (commit `8086439`) has a bug where `get_hf_plan` fails for certain quant names (e.g., `:UD-Q8_K_XL`, `:Q8_0`) even though the file exists in the cache. Workaround: use `MODEL_FLAG=-m` with a local symlink path and `DRAFT_FLAG=-md` for draft models.
+- See `docker-compose.yml` for the dual-flag support (`-hf` for HF repos, `-m` for local files).
+- Symlinks to cached HF blobs are stored in `/opt/llama/models/` on the server (bind-mounted to `/models` in container).
+
 ### Local .env != server .env
 - Local `.env`: stale Gemma 4 E4B config (Unsloth).
-- Server `.env`: Qwen3.6-35B-A3B-MTP Q4_K_M with CTX=192K, MTP on.
+- Server `.env`: varies — always copy from `configs/<name>.env`.
 - These diverge because `.env` never syncs. The server-side `configs/` is only updated via `sync.sh push`, but `.env` must be `cp`'d manually.
 
 ## Current production config (validated stable)
@@ -36,12 +41,40 @@
 - **LLama.cpp commit:** `8086439` (deployed 2026-06-17), `backend_sampling=1` auto-enabled (PR #23287)
 - Use this as the default reference. All Gemma 4 configs are legacy/archive.
 
+## Gemma 4 test results (2026-06-23)
+
+### Working: UD-Q4_K_M + Q8_0-MTP draft (`draft-mtp`)
+- **Config file:** `configs/gemma4-26b-q4-k-m-mtp.env`
+- **Model (local):** `/models/gemma4-26b-q4-k-m.gguf` (symlink to HF cache blob)
+- **Draft (local):** `/models/gemma4-26b-q8-mtp.gguf` (symlink to HF cache blob)
+- **Flags:** `MODEL_FLAG=-m`, `DRAFT_FLAG=-md` (bypasses `get_hf_plan` bug)
+- **NGLAYERS=999** (all non-expert layers on GPU, experts on CPU via `CPUMOE=exps=CPU`)
+- **Context:** 131072 (128K)
+- **BATCH=512**, **UBATCH=512**
+- **SPEC_TYPE=draft-mtp**, `SPEC_DRAFT_N_MAX=2` (~90% accept rate, ~26 tok/s)
+- **VRAM:** ~5411/6138 MiB, RAM: ~15/30 GiB
+- **GPU_LAYERS_DRAFT=99** — draft model (Q8_0-MTP, 462 MB) w pełni na GPU; przyspiesza inferencję z ~20.9 → **~26 tok/s** (+24%)
+- **Notes:** `draft-simple` crashes on build 8086439 (PR #20277). Use `draft-mtp` instead.
+
+### Working: UD-Q8_K_XL + Q8_0-MTP draft (`draft-mtp`)
+- **Config file:** `configs/gemma4-26b-q8_0-mtp.env`
+- **Model:** UD-Q8_K_XL (~27.6 GB, near-lossless quality)
+- **Throughput:** ~11.3 tok/s (90% draft accept)
+- **RAM:** ~27/30 GiB (very tight, 4 Gi available)
+- **Notes:** Higher quality than Q4_K_M, but much slower and RAM-constrained.
+
+### Blocked
+- `draft-simple` crashes on this build (PR #20277, `failed to process speculative batch`).
+- HF download (`get_hf_plan`) fails for non-standard quant names. Workaround: local files via symlinks (`-m` flag).
+
 ## MTP speculative decoding
 - Upstream PR #22673, on `ggml-org/llama.cpp:master`. Flags in `docker-compose.yml`:
   - `--spec-type ${SPEC_TYPE:-none}` (set to `draft-mtp`)
   - `--spec-draft-n-max ${SPEC_DRAFT_N_MAX:-3}`
   - `--no-mmproj` (required; MTP segfaults on multimodal prompts otherwise)
 - Turboquant fork (`AtomicBot-ai/atomic-llama-cpp-turboquant`) was abandoned — MTP crashes with SIGSEGV.
+- `draft-simple` crashes on build 8086439 (PR #20277). Use `draft-mtp` for Gemma 4's separate MTP head.
+- For local draft files: use `DRAFT_FLAG=-md` and `DRAFT_MODEL=/path/to/draft.gguf`.
 
 ## Build
 - Source: `ggml-org/llama.cpp.git`, pinned by `LLAMA_REF` compose build arg (default `master`).

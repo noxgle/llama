@@ -50,6 +50,31 @@ Typical steady-state (after full startup stabilization):
 - Throughput: ~26–29 tok/s (short prompts), ~18–19 tok/s (30K+ prompt prefill), ~14–15 tok/s during sustained generation of 4K+ tokens (KV cache pressure on 6 GB VRAM)
 - VRAM: ~4.4–4.8 GiB / 6.0 GiB (at 160K context, BATCH=512, varies with prompt cache accumulation)
 
+### Gemma 4 26B Alternative
+
+Validated config file:
+
+- `configs/gemma4-26b-q4-k-m-mtp.env`
+
+Key values:
+
+- `MODEL_FLAG=-m` + `MODEL=/models/gemma4-26b-q4-k-m.gguf` (local symlink to HF cache, bypasses `get_hf_plan` bug)
+- `DRAFT_FLAG=-md` + `DRAFT_MODEL=/models/gemma4-26b-q8-mtp.gguf` (Q8_0-MTP draft head, 462 MB)
+- `CTX=131072` (128K)
+- `NGLAYERS=999` (full GPU offload of non-expert layers; MoE experts on CPU via `CPUMOE=exps=CPU`)
+- `SPEC_TYPE=draft-mtp`, `SPEC_DRAFT_N_MAX=2`
+- `GPU_LAYERS_DRAFT=99` (draft model fully on GPU)
+- `BATCH=512`, `UBATCH=512`
+- `FLASHATTN=on`
+
+Typical steady-state:
+
+- Throughput: **~26 tok/s** (short prompts), ~44 tok/s prefill
+- VRAM: **~5.4 GiB / 6.0 GiB** (at 128K context, BATCH=512), RAM: ~15/30 GiB
+- Draft acceptance rate: **~90%**
+
+See `AGENTS.md` → "Gemma 4 test results" for benchmark details and the higher-quality but RAM-constrained Q8_K_XL variant (`configs/gemma4-26b-q8_0-mtp.env`).
+
 ---
 
 ## Architecture
@@ -150,7 +175,12 @@ ssh root@192.168.200.38 'docker ps && docker stats --no-stream'
 ### Local `.env` switch
 
 ```bash
+# Qwen3.6-35B (production, ~29 tok/s, 160K)
 cp configs/qwen3.6-35ba3b-mtp-unsloth.env .env
+
+# Gemma 4 26B A4B (alternative, ~26 tok/s, 128K)
+cp configs/gemma4-26b-q4-k-m-mtp.env .env
+
 docker compose up -d
 ```
 
@@ -160,26 +190,36 @@ docker compose up -d
 
 ```bash
 ssh root@192.168.200.38
+# Qwen3.6-35B (production)
 cp /opt/llama/configs/qwen3.6-35ba3b-mtp-unsloth.env /opt/llama/.env
+
+# Gemma 4 26B A4B (alternative)
+cp /opt/llama/configs/gemma4-26b-q4-k-m-mtp.env /opt/llama/.env
+
 docker compose down && docker compose up -d
 ```
+
+> **Note:** Gemma 4 uses local GGUF symlinks (`MODEL_FLAG=-m`, `DRAFT_FLAG=-md`). Before switching, ensure the model blobs exist in the HF cache or pre-download them. See `AGENTS.md` → "HF download bug" for details.
 
 ### Important environment variables
 
 > **CPUMOE performance note:** Setting `CPUMOE=exps=CPU` (current default) routes MoE expert weights through CPU, saving VRAM but reducing throughput. Setting `CPUMOE=` (empty) keeps all experts on GPU and improves throughput by ~2–5 tok/s, but increases VRAM usage. Adjust based on your VRAM headroom: with 160K context at ~4483 MiB (BATCH=512), setting `CPUMOE=` is not recommended due to limited headroom.
 
-| Variable | Description | Production value |
-|---|---|---|
-| `MODEL` | Hugging Face model selector | `unsloth/Qwen3.6-35B-A3B-MTP-GGUF:UD-Q4_K_M` |
-| `CTX` | Context length | `163840` |
-| `N_PREDICT` | Token cap (`-1` = unlimited) | `-1` |
-| `NGLAYERS` | Layers offloaded to GPU | `999` |
-| `FLASHATTN` | Flash Attention | `on` |
-| `BATCH` / `UBATCH` | Batch settings | `512` / `512` |
-| `THREADS` / `THREADS_BATCH` | CPU thread settings | `6` / `6` |
-| `CTX_CHECKPOINTS` | KV context checkpoint slots per prompt | `4` |
-| `SPEC_TYPE` | Speculative decoding mode | `draft-mtp` |
-| `SPEC_DRAFT_N_MAX` | MTP draft tokens per step | `2` |
+| Variable | Description | Qwen3.6 (production) | Gemma4 (alternative) |
+|---|---|---|---|
+| `MODEL` / `MODEL_FLAG` | Model selector | `MODEL=unsloth/...:UD-Q4_K_M` (HF) | `MODEL_FLAG=-m` + `MODEL=/models/gemma4-26b-q4-k-m.gguf` (local) |
+| `DRAFT_MODEL` / `DRAFT_FLAG` | Draft model | (embedded MTP head) | `DRAFT_FLAG=-md` + `DRAFT_MODEL=/models/gemma4-26b-q8-mtp.gguf` |
+| `CTX` | Context length | `163840` | `131072` |
+| `N_PREDICT` | Token cap (`-1` = unlimited) | `-1` | `-1` |
+| `NGLAYERS` | Layers offloaded to GPU | `999` | `999` |
+| `GPU_LAYERS_DRAFT` | Draft model GPU offload | (embedded) | `99` (full draft on GPU) |
+| `CPUMOE` | MoE expert placement | (dense model, N/A) | `exps=CPU` |
+| `FLASHATTN` | Flash Attention | `on` | `on` |
+| `BATCH` / `UBATCH` | Batch settings | `512` / `512` | `512` / `512` |
+| `THREADS` / `THREADS_BATCH` | CPU thread settings | `6` / `6` | `6` / `6` |
+| `CTX_CHECKPOINTS` | KV context checkpoint slots per prompt | `4` | `4` |
+| `SPEC_TYPE` | Speculative decoding mode | `draft-mtp` | `draft-mtp` |
+| `SPEC_DRAFT_N_MAX` | MTP draft tokens per step | `2` | `2` |
 
 ---
 
@@ -279,12 +319,17 @@ Throughput degrades to ~14–15 tok/s during sustained generation of 4K+ tokens 
 † 192K deprecated — reduced due to VRAM pressure.
 ‡ GPU upgraded from GTX 1060 6GB (Pascal) to RTX A2000 6GB (Ampere, Tensor Cores). Prefill speed improved from ~130 to ~442 tok/s (~3.4×). Throughput improved from ~24.1 to ~29.2 tok/s.
 
+### Gemma 4 26B profile
+
+| Config | MTP | Context | Throughput | VRAM | RAM | Notes |
+|---|---|---|---:|---:|---:|---|
+| `gemma4-26b-q4-k-m-mtp.env` | `draft-mtp` N_MAX=2 | 128K | **~26 tok/s** | ~5411 MiB | ~15 GiB | 🏆 Recommended |
+| `gemma4-26b-q8_0-mtp.env` | `draft-mtp` N_MAX=2 | 16K | **~11.3 tok/s** | ~4000 MiB | ~27 GiB | Near-lossless, RAM-tight |
+
 ### Historical profiles
 
 | Profile | Throughput | VRAM |
 |---|---:|---:|
-| Gemma 4 E4B UD-Q4_K_XL (128K) | ~23.2 tok/s | 5779 / 6144 MiB |
-| Gemma 4 E2B UD-Q4_K_XL (BATCH=2048) | ~41–45 tok/s | ~6045 / 6144 MiB |
 | Qwen 3.5 2B Q4_K_M (64K) | ~58.4 tok/s | 3971 / 6144 MiB |
 | Qwen 3.5 4B Q5_K_M (64K tuned) | ~25.9 tok/s | 5507 / 6144 MiB |
 

@@ -12,6 +12,7 @@ services:
       - "${PORT:-8089}:${PORT:-8089}"
     volumes:
       - hf-cache:/root/.cache/huggingface
+      - ./models:/models:ro
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
     deploy:
@@ -22,7 +23,8 @@ services:
               count: all
               capabilities: [gpu]
     command:
-      - "-hf"
+      # -hf for HuggingFace repo:ref, OR -m /path/to/model.gguf (set MODEL_FLAG=-m)
+      - "${MODEL_FLAG:--hf}"
       - "${MODEL:-unsloth/gemma-4-E4B-it-GGUF:UD-Q4_K_XL}"
       - "--jinja"
       - "-c"
@@ -67,6 +69,16 @@ services:
       - "${SPEC_TYPE:-none}"
       - "--spec-draft-n-max"
       - "${SPEC_DRAFT_N_MAX:-3}"
+      # Gemma 4 draft model flags
+      # Use DRAFT_FLAG=-md for local file, or --hf-repo-draft for HF (default)
+      - "${DRAFT_FLAG:---hf-repo-draft}"
+      - "${DRAFT_MODEL:-}"
+      - "--gpu-layers-draft"
+      - "${GPU_LAYERS_DRAFT:-0}"
+      - "--spec-draft-n-min"
+      - "${SPEC_DRAFT_N_MIN:-0}"
+      - "--spec-draft-p-min"
+      - "${SPEC_DRAFT_P_MIN:-0.0}"
 
 volumes:
   hf-cache:
