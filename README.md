@@ -153,6 +153,32 @@ nvidia-smi --query-gpu=memory.used,memory.total --format=csv,noheader
 
 ---
 
+## Quick Install (fresh LXC / bare metal)
+
+Provision a Debian 12+ / Ubuntu 22.04+ machine with Docker, GPU support, and a
+llama.cpp server — single command, no manual steps:
+
+```bash
+# Qwen3.6 (production, ~30 tok/s, 160K context)
+bash <(curl -fsSL https://raw.githubusercontent.com/noxgle/llama/master/deploy/install-llama.sh) qwen
+
+# Gemma4 26B (alternative, ~27 tok/s, 128K context)
+bash <(curl -fsSL https://raw.githubusercontent.com/noxgle/llama/master/deploy/install-llama.sh) gemma4
+```
+
+The script installs Docker + nvidia-container-toolkit, pulls the server image
+from GHCR, pre-caches model weights, and configures systemd autostart.
+After reboot the model starts automatically on port **8089**.
+
+**Prerequisites:**
+- Debian 12+ or Ubuntu 22.04+ (fresh install)
+- Root access
+- NVIDIA GPU with drivers installed
+- For Proxmox LXC: GPU passthrough must be configured on the host
+  (script aborts with instructions if `/dev/nvidia*` is missing)
+
+---
+
 ## Quick Start
 
 Check if the server is running and healthy:

@@ -97,6 +97,38 @@ The `llama.sh` script avoids this issue entirely — it reads configs directly v
   - **Qwen3.6+MTP:** 29.2 → 30.1 tok/s (+3%)
   - Key PRs in b9770: flash mtp3 (#24340), CUDA PDL MoE (#24087), Step3.5 MTP fix (#24060), MTP verify batch (#21845).
 
+## Provisioning (from scratch)
+
+### `deploy/install-llama.sh` (LXC / bare metal bootstrap)
+
+Installs Docker, nvidia-container-toolkit, and a complete llama.cpp server on a
+fresh Debian 12+ or Ubuntu 22.04+ machine.  Run from a curl pipe — no repo
+checkout needed:
+
+```bash
+# Qwen3.6 (production)
+bash <(curl -fsSL https://raw.githubusercontent.com/noxgle/llama/master/deploy/install-llama.sh) qwen
+
+# Gemma4 26B (alternative)
+bash <(curl -fsSL https://raw.githubusercontent.com/noxgle/llama/master/deploy/install-llama.sh) gemma4
+```
+
+**What it does:**
+1. Installs Docker Engine (official repo)
+2. Installs nvidia-container-toolkit
+3. Verifies GPU access inside Docker — **aborts if GPU is not available**
+4. Clones the repo to `/opt/llama`
+5. Creates HF cache Docker volume + `models/` directory
+6. Pulls server image from GHCR
+7. Enables systemd service for autostart (`llama@<model>`)
+8. Pre-caches model weights from HuggingFace
+9. Starts the server on port 8089
+
+After reboot the model auto-starts via systemd.  GPU passthrough for Proxmox LXC
+is a prerequisite — the script prints the required `lxc.*` entries if missing.
+
+---
+
 ## Production scripts
 
 ### `llama.sh` (docker run wrapper, replaces compose)
