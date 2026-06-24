@@ -281,7 +281,7 @@ fi
 heading "Step 7/10 — Disk space check"
 
 MODEL_MIN_GB=25  # Qwen3.6 Q4_K_M ~22 GB, Gemma4 Q4_K_M ~16 GB
-AVAIL_GB=$(($(stat -f --format="%a*%S" /) / 1073741824 2>/dev/null || df -BG / | awk 'NR==2{print $4+0}'))
+AVAIL_GB=$(df -BG / | awk 'NR==2{gsub(/G/,"",$4); print $4+0}')
 if [ "$AVAIL_GB" -lt "$MODEL_MIN_GB" ]; then
   warn "Only ${AVAIL_GB}G available on /, model needs ~${MODEL_MIN_GB}G for download + cache"
   warn "The server may fail to download model weights — consider freeing space"

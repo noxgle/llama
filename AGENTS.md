@@ -3,6 +3,7 @@
 ## Scope
 - **Production server:** `root@192.168.200.38:/opt/llama` — RTX 4060 Ti 16 GB, Qwen3.6 35B (~30 tok/s)
 - **Test/alt server:** `root@192.168.200.20:/opt/llama` — RTX A2000 6 GB, Debian 13 trixie, Qwen3.6 (~36 tok/s)
+- **New test server:** `root@192.168.200.21:/opt/llama` — RTX A2000 6 GB, Debian 13 trixie, Gemma4 (~25.5 tok/s)
 - Operational SOTs: `llama.sh`, `configs/*.env`, `deploy/install-llama.sh`, `.github/workflows/build.yml`.
 
 ## Deployment gotchas (critical)
@@ -28,8 +29,18 @@ The `llama.sh` script avoids this issue entirely — it reads configs directly v
 
 ### HF download bug (get_hf_plan)
 - The deployed builds have a bug where `get_hf_plan` fails for certain quant names (e.g., `:UD-Q8_K_XL`, `:Q8_0`) even though the file exists in the cache. Workaround: use `MODEL_FLAG=-m` with a local symlink path and `DRAFT_FLAG=-md` for draft models.
+- `:UD-Q4_K_M` works, `:UD-Q8_0` fails, subdirectory files like `MTP/gemma-...-Q8_0-MTP.gguf` need direct download via curl.
 - See `docker-compose.yml` for the dual-flag support (`-hf` for HF repos, `-m` for local files).
 - Symlinks to cached HF blobs are stored in `/opt/llama/models/` on the server (bind-mounted to `/models` in container).
+
+### Symlinks must use container paths, NOT host paths
+- The symlink in `/opt/llama/models/` must point to the path **inside the container**, not on the host.
+- ❌ Wrong: `ln -sf /var/lib/docker/volumes/llama_hf-cache/_data/hub/.../blob /opt/llama/models/model.gguf`
+  → Inside container, `/var/lib/docker/volumes/` doesn't exist, so the symlink fails.
+- ✅ Correct: `ln -sf /root/.cache/huggingface/hub/.../blob /opt/llama/models/model.gguf`
+  → The HF cache Docker volume is mounted at `/root/.cache/huggingface` inside the container.
+- The symlink is stored on the host filesystem but its target path is relative to the container's root.
+- Verify with: `docker run --rm -v /opt/llama/models:/models -v llama_hf-cache:/root/.cache/huggingface --entrypoint bash ghcr.io/noxgle/llama-server:latest -c "head -c 4 /models/model.gguf | od -A x -t x1z"`
 
 ### Local .env != server .env
 - Local `.env`: stale Gemma 4 E4B config (Unsloth).
