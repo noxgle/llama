@@ -1,9 +1,9 @@
 # AGENTS.md
 
 ## Scope
-- **Production server:** `root@192.168.200.38:/opt/llama` — RTX 4060 Ti 16 GB, Qwen3.6 35B (~30 tok/s)
-- **Test/alt server:** `root@192.168.200.20:/opt/llama` — RTX A2000 6 GB, Debian 13 trixie, Qwen3.6 (~36 tok/s)
-- **New test server:** `root@192.168.200.21:/opt/llama` — RTX A2000 6 GB, Debian 13 trixie, Gemma4 (~25.5 tok/s)
+- **Dev server:** `root@192.168.200.38:/opt/llama` — RTX A2000 6 GB, compilation + config/model testing
+- **Production (prod-qwen3.6-35ba3b-mtp):** `root@192.168.200.20:/opt/llama` — RTX A2000 6 GB, Debian 13 trixie, Qwen3.6 35B A3B MTP (~30 tok/s)
+- **Production (prod-gemma4-26b-q4-k-m-mtp):** `root@192.168.200.21:/opt/llama` — RTX A2000 6 GB, Debian 13 trixie, Gemma4 26B Q4_K_M MTP (~27 tok/s)
 - Operational SOTs: `llama.sh`, `configs/*.env`, `deploy/install-llama.sh`, `.github/workflows/build.yml`.
 
 ## Deployment gotchas (critical)
