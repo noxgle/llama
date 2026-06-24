@@ -69,9 +69,12 @@ Key values:
 
 Typical steady-state:
 
-- Throughput: **~27.4 tok/s** (short prompts), ~46 tok/s prefill
+- Throughput: **~27.4 tok/s** (RTX 4060 Ti) / **~25.5 tok/s** (RTX A2000) — short prompts
 - VRAM: **~5.4 GiB / 6.0 GiB** (at 128K context, BATCH=512), RAM: ~15/30 GiB
 - Draft acceptance rate: **~85%**
+
+**Fresh install?** Follow "Post-Install: Gemma4 manual steps" below for draft model
+download and symlink setup.
 
 See `AGENTS.md` → "Gemma 4 test results" for benchmark details and the higher-quality but RAM-constrained Q8_K_XL variant (`configs/gemma4-26b-q8_0-mtp.env`).
 
@@ -176,6 +179,65 @@ After reboot the model starts automatically on port **8089**.
 - NVIDIA GPU with drivers installed
 - For Proxmox LXC: GPU passthrough must be configured on the host
   (script aborts with instructions if `/dev/nvidia*` is missing)
+
+> **⚠️ Symlinks must point to container paths** — When creating GGUF symlinks in
+> `/opt/llama/models/` for Gemma4 or other local models, the target must be an
+> absolute path that exists **inside** the Docker container
+> (e.g., `/root/.cache/huggingface/hub/...`), not on the host
+> (e.g., `/var/lib/docker/volumes/...`). A symlink with a host path will silently
+> fail with `No such file or directory` inside the container. See
+> "Post-Install: Gemma4 manual steps" below for the correct approach.
+
+### Post-Install: Gemma4 manual steps
+
+The `install-llama.sh gemma4` script pre-caches the main model (UD-Q4_K_M) and
+starts the server, but two manual steps are required before the model loads
+successfully:
+
+#### 1. Download the draft model (Q8_0-MTP head)
+
+The `get_hf_plan` bug prevents downloading files from subdirectories like `MTP/`.
+Download the draft model directly via curl:
+
+```bash
+curl -L -o /opt/llama/models/gemma4-26b-q8-mtp.gguf \
+  https://huggingface.co/unsloth/gemma-4-26B-A4B-it-GGUF/resolve/main/MTP/gemma-4-26B-A4B-it-Q8_0-MTP.gguf
+```
+
+#### 2. Create symlinks (container paths only!)
+
+The main model blob is in the `llama_hf-cache` Docker volume. Create a symlink
+that points to a path **inside the container**, not on the host:
+
+```bash
+# Find the correct blob in the HF cache Docker volume
+MAIN_HASH=$(find /var/lib/docker/volumes/llama_hf-cache/_data/hub/ \
+  -name "*UD-Q4_K_M*" -type f -exec basename {} \; | head -1)
+
+# Create symlink — target is the container-side path!
+ln -sf \
+  "/root/.cache/huggingface/hub/models--unsloth--gemma-4-26B-A4B-it-GGUF/blobs/$MAIN_HASH" \
+  /opt/llama/models/gemma4-26b-q4-k-m.gguf
+```
+
+Verify the symlink works from inside the container:
+```bash
+docker run --rm \
+  -v /opt/llama/models:/models \
+  -v llama_hf-cache:/root/.cache/huggingface \
+  --entrypoint bash \
+  ghcr.io/noxgle/llama-server:latest \
+  -c "head -c 4 /models/gemma4-26b-q4-k-m.gguf | od -A x -t x1z"
+# Expected output: 000000 47 47 55 46  >GGUF<
+```
+
+#### 3. Restart the server
+
+```bash
+/opt/llama/llama.sh restart gemma4
+```
+
+The server should load the model in ~50–60s (verify with `curl http://localhost:8089/health`).
 
 ---
 
@@ -487,6 +549,32 @@ docker compose up -d
 
 - If MTP segfaults: check watchdog logs and restart stack (`down && up -d`).
 - If VRAM is saturated: reduce `CTX` or batch settings.
+
+### Stale CUDA contexts (VRAM leak after container crash-loop)
+
+After a crash-looping container (e.g., model load failures with `--restart unless-stopped`),
+`nvidia-smi` may report high VRAM usage but show **"No running processes found"**.
+This happens because stale `llama-server` processes holding CUDA contexts survive
+container restart; Docker does not always clean them up.
+
+**Symptoms:**
+- `nvidia-smi` shows `Used: 4765 MiB` but no listed processes
+- GPU is unreachable by new containers until the VRAM is freed
+- `docker logs` shows `cudaMalloc failed: out of memory`
+
+**Fix:**
+```bash
+# Find stale processes holding GPU devices
+fuser -v /dev/nvidia*
+# Kill every llama-server process found
+kill -9 <PID>
+# Verify VRAM is freed
+nvidia-smi --query-gpu=memory.used,memory.free --format=csv,noheader
+```
+
+**Prevention:** Avoid repeated `docker stop` + `docker rm` on crash-looping
+containers; use `docker compose down` or `systemctl stop` to ensure clean
+teardown. The `llama.sh` wrapper handles this automatically.
 
 ### Empty response from Qwen models
 
