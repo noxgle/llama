@@ -452,6 +452,18 @@ Throughput degrades to ~14–15 tok/s during sustained generation of 4K+ tokens 
 | Qwen 3.5 2B Q4_K_M (64K) | ~58.4 tok/s | 3971 / 6144 MiB |
 | Qwen 3.5 4B Q5_K_M (64K tuned) | ~25.9 tok/s | 5507 / 6144 MiB |
 
+### Knowledge benchmark
+
+10 knowledge tasks (data analysis, programming, logic, math, networking, creative writing, code review, SQL, ELI5, algorithms) tested with unlimited tokens and 300s timeout.
+
+| Model | Speed | Draft% | Tokens | Time | Grade |
+|-------|:----:|:------:|:------:|:----:|:-----:|
+| **Gemma4 26B Q4_K_M+MTP** | 27.3 tok/s | 89.6% | 14,574 | 9.7 min | **A** |
+| **Qwen3.6 35B A3B MTP** | 29.1 tok/s | 83.1% | 30,973 | 18.0 min | **A** |
+
+Both models scored A in all 10 tasks. Gemma4 is more concise (2× fewer tokens, 2× faster total time). Qwen is faster per-token but more verbose.
+Full details: [`scripts/benchmark-knowledge-compare.md`](scripts/benchmark-knowledge-compare.md).
+
 ---
 
 ## Build Info
