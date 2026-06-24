@@ -165,7 +165,7 @@ is a prerequisite — the script prints the required `lxc.*` entries if missing.
 - **Usage:**
   ```bash
   ./llama.sh start qwen       # Qwen3.6 on port 8089
-  ./llama.sh start gemma4     # Gemma4 on port 8090
+  ./llama.sh start gemma4     # Gemma4 on port 8089
   ./llama.sh stop             # Stop both
   ./llama.sh restart qwen     # Stop + start
   ./llama.sh status           # List containers

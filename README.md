@@ -294,7 +294,7 @@ ssh root@192.168.200.38
 # Start Qwen3.6 (production, port 8089)
 /opt/llama/llama.sh start qwen
 
-# Switch to Gemma4 (port 8090) — stops Qwen first
+# Switch to Gemma4 (port 8089) — stops Qwen first
 /opt/llama/llama.sh start gemma4
 
 # Check status

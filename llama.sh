@@ -3,7 +3,7 @@
 #
 # Usage:
 #   ./llama.sh start qwen       Start Qwen3.6 (port 8089, default)
-#   ./llama.sh start gemma4     Start Gemma4 26B (port 8090)
+#   ./llama.sh start gemma4     Start Gemma4 26B (port 8089)
 #   ./llama.sh stop             Stop and remove both containers
 #   ./llama.sh restart qwen     Stop + start Qwen
 #   ./llama.sh status           List running llama containers
@@ -30,7 +30,7 @@ MODEL_CONTAINER[qwen]="llama-qwen"
 MODEL_CONTAINER[gemma4]="llama-gemma4"
 
 MODEL_PORT[qwen]="8089"
-MODEL_PORT[gemma4]="8090"
+MODEL_PORT  [gemma4]="8089"
 
 MODEL_CONFIG[qwen]="qwen3.6-35ba3b-mtp-unsloth.env"
 MODEL_CONFIG[gemma4]="gemma4-26b-q4-k-m-mtp.env"
