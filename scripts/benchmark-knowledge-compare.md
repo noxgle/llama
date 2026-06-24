@@ -6,13 +6,13 @@
 |---|---------------|-------|--------|-----------|------------|-------|------|--------|-------|------|---------|----------|--------|-----|------|------|
 | 1 | **Gemma4 26B Q4_K_M+MTP** (unlimited) | 27.3 | 89.6% | 14,574 | **9.7 min** | **A** | A | A | A | A | A | A | A | A | A | A |
 | 2 | **Qwen3.6 35B A3B MTP** (unlimited) | 29.1 | 83.1% | 30,973 | **18.0 min** | **A** | A | A | A | A | A | A | A | A | A | A |
-| 3 | *(twój następny model)* | | | | | | | | | | | | | | | |
+| 3 | *(your next model)* | | | | | | | | | | | | | | | |
 
-<!-- Dodawaj kolejne wiersze od #3 w górę. Kolumny: Speed (tok/s), Draft% (draft accept rate), Total tok, Total time, Grade (overall), Data/.../Algo (oceny per task, A-F) -->
+<!-- Add rows from #3 upwards. Columns: Speed (tok/s), Draft% (draft accept rate), Total tok, Total time, Grade (overall), Data/.../Algo (per-task grades A-F) -->
 
 ### Model Comparison Highlights
 
-| Aspekt | Gemma4 26B Q4_K_M+MTP | Qwen3.6 35B A3B MTP |
+| Aspect | Gemma4 26B Q4_K_M+MTP | Qwen3.6 35B A3B MTP |
 |--------|----------------------|-------------------|
 | **Speed** | 27.3 tok/s | **29.1 tok/s** (+7%) |
 | **Draft accept** | **89.6%** | 83.1% |
@@ -22,7 +22,7 @@
 | **Server** | 192.168.200.21 (RTX A2000) | 192.168.200.20 (RTX A2000) |
 | **Context** | 131K | 160K |
 
-*Qwen jest szybszy w tok/s, ale generuje 2× więcej treści przez co łącznie trwa 2× dłużej. Gemma4 jest bardziej zwięzła i efektywna czasowo.*
+*Qwen is faster in tok/s, but generates 2× more tokens, so it takes 2× as long overall. Gemma4 is more concise and time-efficient.*
 
 ## Detailed Results
 
@@ -50,11 +50,11 @@
 | 10 | Algorithm Design | 26.9 | 1755 | 66s | **A** |
 
 **Key findings:**
-- Wszystkie 10 zadań zaliczone celująco (A). Łączny czas: **9.7 min**.
-- SQL Query (106s) najdłuższe zadanie; Data Analysis najszybsze (25s).
-- Speed stabilny ~27.3 tok/s, draft acceptance wysoki (89.6%).
+- All 10 tasks completed with top marks (A). Total time: **9.7 min**.
+- SQL Query (106s) the longest; Data Analysis fastest (25s).
+- Stable speed ~27.3 tok/s, high draft acceptance (89.6%).
 
-**Konkluzja:** Gemma4 26B Q4_K_M+MTP — zwięzły i efektywny. Dobry wybór gdy zależy na szybkiej odpowiedzi.
+**Takeaway:** Gemma4 26B Q4_K_M+MTP — concise and efficient. A good choice when fast response time matters.
 
 ---
 
@@ -80,23 +80,23 @@
 | 10 | Algorithm Design | 26.2 | 3791 | 146s | **A** |
 
 **Key findings:**
-- Najszybszy model w benchmarku: **29.1 tok/s**.
-- Łączny czas: **18 minut** na 10 zadań.
-- Bardzo gadatliwy: **30,973 tokenów** vs Gemma4 14,548 — 2× więcej treści dla tych samych promptów.
-- Niższy draft acceptance (83.5% vs 89.3%) — MTP mniej efektywne niż u Gemmy.
-- Python Programming (5933 tok) i Creative Writing (4211 tok) — najbardziej rozbudowane odpowiedzi.
-- Jakość celująca (A) we wszystkich zadaniach, podobnie jak Gemma4.
+- Fastest model in the benchmark: **29.1 tok/s**.
+- Total time: **18 minutes** for 10 tasks.
+- Very verbose: **30,973 tokens** vs Gemma4 14,548 — 2× more content for the same prompts.
+- Lower draft acceptance (83.5% vs 89.3%) — MTP less effective than Gemma4.
+- Python Programming (5933 tok) and Creative Writing (4211 tok) — the most elaborate responses.
+- Top quality (A) across all tasks, same as Gemma4.
 
 ---
 
-### #3  *(twój następny model)*
+### #3  *(your next model)*
 
 <!--
-Wzór do skopiowania:
+Template to copy:
 
-### #N  NazwaModelu — YYYY-MM-DD
+### #N  ModelName — YYYY-MM-DD
 
-**Config file:** `configs/nazwa-modelu.env`
+**Config file:** `configs/model-name.env`
 **Server:** host (OS, GPU)
 **Flags:** `...`
 **Context:** ...
@@ -113,7 +113,7 @@ Wzór do skopiowania:
 
 ## Notes
 
-- Wszystkie benchmarki wykonywane tym samym skryptem: `scripts/benchmark-knowledge.sh`
-- Jednolite zadania (10), te same prompt'y — tylko model/config się zmienia
-- Grade per task: A (celujący), B (dobry), C (słaby), D/F (niedostateczny)
-- Grade overall: średnia ważona ocen per task
+- All benchmarks run with the same script: `scripts/benchmark-knowledge.sh`
+- Identical tasks (10), same prompts — only model/config changes
+- Per-task grade: A (excellent), B (good), C (weak), D/F (failing)
+- Overall grade: weighted average of per-task grades
