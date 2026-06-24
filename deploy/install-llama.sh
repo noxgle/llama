@@ -19,8 +19,10 @@
 #   4. Clones noxgle/llama repo to /opt/llama
 #   5. Creates HF cache volume + models/ directory
 #   6. Pulls llama-server image from GitHub Container Registry
-#   7. Enables systemd service (llama@<model>) for autostart on boot
-#   8. Starts the server on port 8089
+#   7. Checks available disk space (warns if < 25 GB)
+#   8. Enables systemd service (llama@<model>) for autostart on boot
+#   9. Pre-downloads model weights (best-effort, background)
+#  10. Starts the server on port 8089
 #
 # After reboot:  model auto-starts via systemd
 # To switch:     /opt/llama/llama.sh {start|stop|restart}
@@ -97,7 +99,7 @@ info "Install: $INSTALL_DIR"
 # ==================================================================
 # 1. Install Docker Engine
 # ==================================================================
-heading "Step 1/8 — Docker Engine"
+heading "Step 1/10 — Docker Engine"
 
 if command -v docker &>/dev/null; then
   info "Docker already installed ($(docker --version 2>/dev/null || true))"
@@ -110,9 +112,14 @@ else
   curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
   chmod a+r /etc/apt/keyrings/docker.asc
 
-  # Add repository (works for both Debian and Ubuntu)
+  # Add repository (Docker only publishes for stable Debian/Ubuntu releases)
   . /etc/os-release
-  echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/${ID} ${VERSION_CODENAME} stable" \
+  case "$ID/$VERSION_CODENAME" in
+    debian/trixie|debian/forky) DOCKER_CODENAME="bookworm" ;;
+    ubuntu/plucky)              DOCKER_CODENAME="noble"    ;;
+    *)                          DOCKER_CODENAME="$VERSION_CODENAME" ;;
+  esac
+  echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/${ID} ${DOCKER_CODENAME} stable" \
     > /etc/apt/sources.list.d/docker.list
 
   apt-get update -qq
@@ -125,7 +132,7 @@ fi
 # ==================================================================
 # 2. Install NVIDIA Container Toolkit
 # ==================================================================
-heading "Step 2/8 — NVIDIA Container Toolkit"
+heading "Step 2/10 — NVIDIA Container Toolkit"
 
 if command -v nvidia-ctk &>/dev/null; then
   info "nvidia-container-toolkit already installed"
@@ -148,7 +155,7 @@ fi
 # ==================================================================
 # 3. Verify GPU access inside Docker (HARD FAIL if missing)
 # ==================================================================
-heading "Step 3/8 — GPU verification"
+heading "Step 3/10 — GPU verification"
 
 info "Checking NVIDIA devices..."
 if [ ! -c /dev/nvidia0 ] && [ ! -c /dev/nvidiactl ]; then
@@ -207,7 +214,7 @@ info "GPU detected: $GPU_OUTPUT"
 # ==================================================================
 # 4. Clone / pull the llama repo
 # ==================================================================
-heading "Step 4/8 — Clone llama repo"
+heading "Step 4/10 — Clone llama repo"
 
 if [ -d "$INSTALL_DIR/.git" ]; then
   info "Repo already cloned at $INSTALL_DIR, pulling latest..."
@@ -226,7 +233,7 @@ chmod +x "$INSTALL_DIR/llama.sh"
 # ==================================================================
 # 5. Create storage (Docker volume + models dir)
 # ==================================================================
-heading "Step 5/8 — Storage setup"
+heading "Step 5/10 — Storage setup"
 
 docker volume create llama_hf-cache 2>/dev/null || true
 mkdir -p "$INSTALL_DIR/models"
@@ -236,16 +243,55 @@ info "Directory $INSTALL_DIR/models ready"
 # ==================================================================
 # 6. Pull llama-server image from GHCR
 # ==================================================================
-heading "Step 6/8 — Pull llama-server image"
+heading "Step 6/10 — Pull llama-server image"
 
 info "Pulling $LLAMA_IMAGE ..."
-docker pull "$LLAMA_IMAGE" 2>&1 | tail -3
-info "Image available"
+if docker pull "$LLAMA_IMAGE" 2>&1; then
+  info "Image pulled from registry"
+else
+  warn "Registry pull failed — trying to load locally cached image..."
+  if docker images --format "{{.Repository}}:{{.Tag}}" | grep -qF "$LLAMA_IMAGE"; then
+    info "Found locally cached $LLAMA_IMAGE"
+  else
+    cat >&2 <<EOFFALLBACK
+
+  ${RED}CANNOT OBTAIN SERVER IMAGE${NC}
+  docker pull of $LLAMA_IMAGE failed and no local image found.
+
+  To resolve:
+    1. Push the image from a build machine:
+       docker tag llama-llama-server:latest $LLAMA_IMAGE
+       docker push $LLAMA_IMAGE
+
+    2. Or transfer the image directly:
+       docker save llama-llama-server:latest | gzip > /tmp/llama.tar.gz
+       scp /tmp/llama.tar.gz root@<this-server>:/tmp/
+       gzip -dc /tmp/llama.tar.gz | docker load
+       docker tag llama-llama-server:latest $LLAMA_IMAGE
+
+  Then re-run this script.
+EOFFALLBACK
+    exit 1
+  fi
+fi
 
 # ==================================================================
-# 7. Configure systemd autostart
+# 7. Disk space check
 # ==================================================================
-heading "Step 7/8 — systemd autostart"
+heading "Step 7/10 — Disk space check"
+
+MODEL_MIN_GB=25  # Qwen3.6 Q4_K_M ~22 GB, Gemma4 Q4_K_M ~16 GB
+AVAIL_GB=$(($(stat -f --format="%a*%S" /) / 1073741824 2>/dev/null || df -BG / | awk 'NR==2{print $4+0}'))
+if [ "$AVAIL_GB" -lt "$MODEL_MIN_GB" ]; then
+  warn "Only ${AVAIL_GB}G available on /, model needs ~${MODEL_MIN_GB}G for download + cache"
+  warn "The server may fail to download model weights — consider freeing space"
+  sleep 3
+fi
+
+# ==================================================================
+# 8. Configure systemd autostart
+# ==================================================================
+heading "Step 8/10 — systemd autostart"
 
 if [ -f "$INSTALL_DIR/deploy/systemd/llama@.service" ]; then
   cp "$INSTALL_DIR/deploy/systemd/llama@.service" /etc/systemd/system/
@@ -257,9 +303,9 @@ else
 fi
 
 # ==================================================================
-# 8. Pre-download model weights (background, best-effort)
+# 9. Pre-download model weights (background, best-effort)
 # ==================================================================
-heading "Step 8/8 — Pre-download model weights"
+heading "Step 9/10 — Pre-download model weights"
 
 case "$MODEL" in
   qwen)

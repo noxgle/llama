@@ -181,7 +181,17 @@ After reboot the model starts automatically on port **8089**.
 
 ## Quick Start
 
-Check if the server is running and healthy:
+### New machine provisioning (from scratch)
+
+```bash
+# Debian 12+ or Ubuntu 22.04+ with root access and GPU passthrough
+bash <(curl -fsSL https://raw.githubusercontent.com/noxgle/llama/master/deploy/install-llama.sh) qwen
+
+# The script installs Docker + NVIDIA + llama-server and starts on port 8089.
+# Minimum disk: 70 GB (80 GB recommended for Qwen3.6 model ~22 GB).
+```
+
+### Check existing server
 
 ```bash
 # Health endpoint
@@ -190,8 +200,11 @@ curl http://192.168.200.38:8089/health
 # GPU status
 ssh root@192.168.200.38 'nvidia-smi --query-gpu=memory.used,memory.total --format=csv,noheader'
 
-# Docker status
-ssh root@192.168.200.38 'docker ps && docker stats --no-stream'
+# Quick throughput probe
+ssh root@192.168.200.38 'curl -s http://localhost:8089/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d "{\"messages\":[{\"role\":\"user\",\"content\":\"Write ~500 chars.\"}],\"model\":\"qwen3.6\",\"max_tokens\":500}"' \
+  | jq '.timings.predicted_per_second'
 ```
 
 ---

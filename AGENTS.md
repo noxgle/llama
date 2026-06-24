@@ -1,8 +1,9 @@
 # AGENTS.md
 
 ## Scope
-- This repo runs a remote `llama.cpp` server at `root@192.168.200.38:/opt/llama`.
-- Operational SOTs: `docker-compose.yml`, `Dockerfile`, `sync.sh`, `configs/*.env`.
+- **Production server:** `root@192.168.200.38:/opt/llama` — RTX 4060 Ti 16 GB, Qwen3.6 35B (~30 tok/s)
+- **Test/alt server:** `root@192.168.200.20:/opt/llama` — RTX A2000 6 GB, Debian 13 trixie, Qwen3.6 (~36 tok/s)
+- Operational SOTs: `llama.sh`, `configs/*.env`, `deploy/install-llama.sh`, `.github/workflows/build.yml`.
 
 ## Deployment gotchas (critical)
 
@@ -120,12 +121,29 @@ bash <(curl -fsSL https://raw.githubusercontent.com/noxgle/llama/master/deploy/i
 4. Clones the repo to `/opt/llama`
 5. Creates HF cache Docker volume + `models/` directory
 6. Pulls server image from GHCR
-7. Enables systemd service for autostart (`llama@<model>`)
-8. Pre-caches model weights from HuggingFace
-9. Starts the server on port 8089
+7. Checks disk space (warns if < 25 GB for model)
+8. Enables systemd service for autostart (`llama@<model>`)
+9. Pre-caches model weights from HuggingFace
+10. Starts the server on port 8089
 
 After reboot the model auto-starts via systemd.  GPU passthrough for Proxmox LXC
 is a prerequisite — the script prints the required `lxc.*` entries if missing.
+
+### Provisioning gotchas
+
+1. **Debian 13 trixie** — Docker only has repos for bookworm. The script maps
+   `trixie` → `bookworm` for both Docker and NVIDIA CTK repos.
+2. **Disk space** — Qwen3.6 model needs ~22 GB for weights, Docker image is ~18 GB,
+   plus system overhead. Minimum disk: **70 GB** (80 GB recommended).
+3. **Systemd Type=oneshot** — `llama.sh start` returns immediately (detached Docker).
+   The systemd service uses `Type=oneshot` with `RemainAfterExit=yes`.
+4. **GHCR auth** — The image is private by default. CI/CD pushes via `GITHUB_TOKEN`
+   with `packages: write` permission. For external pulls, either make the package
+   public or authenticate with a `read:packages` token.
+5. **Model download** — The server downloads model weights on first start via `-hf`.
+   The install script initiates the download and runs for 60s before returning.
+   The systemd service's `--restart unless-stopped` and systemd's restart policy
+   ensure the download resumes until complete.
 
 ---
 
@@ -152,6 +170,8 @@ is a prerequisite — the script prints the required `lxc.*` entries if missing.
 cp deploy/systemd/llama@.service /etc/systemd/system/
 systemctl enable --now llama@qwen
 ```
+Note: Uses `Type=oneshot` + `RemainAfterExit=yes` because `llama.sh start`
+returns immediately (the container runs detached).
 
 ### CI/CD
 - `.github/workflows/build.yml` — build on push to `master` or tag `b*`.
