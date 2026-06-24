@@ -19,8 +19,11 @@
 | **Total tokens** | **14,574** (concise) | 30,973 (verbose) |
 | **Total time** | **9.7 min** | 18.0 min |
 | **Tasks completed** | 10/10 (A) | 10/10 (A) |
-| **Server** | 192.168.200.21 (RTX A2000) | 192.168.200.20 (RTX A2000) |
-| **Context** | 131K | 160K |
+| **Server** | 192.168.200.21 | 192.168.200.20 |
+| **GPU** | RTX A2000 6 GB (5415/6138 MiB used) | RTX A2000 6 GB (~4473/6144 MiB used) |
+| **CPU** | 6 cores (Intel Xeon) | 6 cores (Intel Xeon) |
+| **RAM** | 30 GB (~15 GiB used) | 30 GB (~20 GiB used) |
+| **Context** | 131K (Q4_0 KV cache) | 160K (Q4_0 KV cache) |
 
 *Qwen is faster in tok/s, but generates 2× more tokens, so it takes 2× as long overall. Gemma4 is more concise and time-efficient.*
 
@@ -31,9 +34,12 @@
 ### #1  Gemma4 26B Q4_K_M + MTP (unlimited) — 2026-06-24
 
 **Config file:** `configs/gemma4-26b-q4-k-m-mtp.env`  
-**Server:** 192.168.200.21 (Debian 13 trixie, RTX A2000 6 GB)  
+**Server:** 192.168.200.21 (Debian 13 trixie, Proxmox LXC)  
+**GPU:** RTX A2000 6 GB (Ampere, Tensor Cores) — 5415/6138 MiB used  
+**CPU:** 6 cores (Intel Xeon)  
+**RAM:** 30 GB (~15 GiB used)  
 **Flags:** `MODEL_FLAG=-m`, `DRAFT_FLAG=-md`, `SPEC_TYPE=draft-mtp`, `SPEC_DRAFT_N_MAX=2`  
-**Context:** 131072 (128K)  
+**Context:** 131072 (128K, Q4_0 KV cache)  
 **Timeout:** 300s | **Max tokens:** unlimited  
 
 | # | Task | tok/s | tokens | time | Grade |
@@ -61,9 +67,12 @@
 ### #2  Qwen3.6 35B A3B MTP (unlimited) — 2026-06-24
 
 **Config file:** `configs/qwen3.6-35ba3b-mtp-unsloth.env`  
-**Server:** 192.168.200.20 (Debian 13 trixie, RTX A2000 6 GB)  
+**Server:** 192.168.200.20 (Debian 13 trixie, Proxmox LXC)  
+**GPU:** RTX A2000 6 GB (Ampere, Tensor Cores) — ~4473/6144 MiB used  
+**CPU:** 6 cores (Intel Xeon)  
+**RAM:** 30 GB (~20 GiB used)  
 **Flags:** `-hf unsloth/...`, `SPEC_TYPE=draft-mtp`, `SPEC_DRAFT_N_MAX=2`  
-**Context:** 163840 (160K)  
+**Context:** 163840 (160K, Q4_0 KV cache)  
 **Timeout:** 300s | **Max tokens:** unlimited  
 
 | # | Task | tok/s | tokens | time | Grade |
@@ -97,9 +106,13 @@ Template to copy:
 ### #N  ModelName — YYYY-MM-DD
 
 **Config file:** `configs/model-name.env`
-**Server:** host (OS, GPU)
+**Server:** host (OS, hypervisor)
+**GPU:** model (VRAM)
+**CPU:** cores (arch)
+**RAM:** total
 **Flags:** `...`
 **Context:** ...
+**Timeout:** ... | **Max tokens:** ...
 **Timeout:** ... | **Max tokens:** ...
 
 | # | Task | tok/s | tokens | Grade |
