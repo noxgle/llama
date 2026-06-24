@@ -8,7 +8,11 @@ Usage:
 
 Output:
   ./benchmark-kb-<timestamp>.txt  — human-readable report
-  ./benchmark-kb-<timestamp>.json — machine-readable results
+  ./benchmark-kb-<timestamp>.json — machine-readable results (incl. full content)
+
+After running:
+  1. Add a row to scripts/benchmark-knowledge-compare.md comparison table
+  2. Add a detailed section with the results
 """
 
 import json
@@ -25,7 +29,7 @@ MODEL = os.environ.get("MODEL", "gemma4")
 TIMESTAMP = datetime.now().strftime("%Y%m%d-%H%M%S")
 OUT_TXT = f"benchmark-kb-{TIMESTAMP}.txt"
 OUT_JSON = f"benchmark-kb-{TIMESTAMP}.json"
-TIMEOUT = 180  # max seconds per request
+TIMEOUT = 300  # 5 minutes per request (unlimited tokens)
 
 # ---- tasks ----
 TASKS = [
@@ -42,7 +46,6 @@ TASKS = [
             "Calculate the average salary. List all employees under age 32. "
             "What department has the highest average salary?"
         ),
-        "max_tokens": 400,
     },
     {
         "name": "Python Programming",
@@ -57,7 +60,6 @@ TASKS = [
             "5. word_freq - a dict of the 3 most common words with their counts\n\n"
             "Include a brief docstring and an example usage."
         ),
-        "max_tokens": 500,
     },
     {
         "name": "Logic Puzzle",
@@ -70,7 +72,6 @@ TASKS = [
             "You can pick one fruit from one box without looking inside. "
             "Which box do you pick from, and how do you determine the correct labels?"
         ),
-        "max_tokens": 400,
     },
     {
         "name": "Mathematics",
@@ -80,7 +81,6 @@ TASKS = [
             "\u222b\u2080\u00b2 (3x\u00b2 + 2x + 1) dx\n\n"
             "Show each step of your work and give the final answer."
         ),
-        "max_tokens": 300,
     },
     {
         "name": "Networking Knowledge",
@@ -92,7 +92,6 @@ TASKS = [
             "2. Reliability guarantees\n"
             "3. Two real-world applications and why that protocol is appropriate"
         ),
-        "max_tokens": 400,
     },
     {
         "name": "Creative Writing",
@@ -102,7 +101,6 @@ TASKS = [
             "the ability to dream. The tone should be contemplative and "
             "slightly melancholic. Use vivid imagery."
         ),
-        "max_tokens": 500,
     },
     {
         "name": "Code Review",
@@ -131,7 +129,6 @@ TASKS = [
             "    return result\n"
             "```"
         ),
-        "max_tokens": 500,
     },
     {
         "name": "SQL Query",
@@ -158,7 +155,6 @@ TASKS = [
             "Only include departments with at least 3 employees. "
             "Order by average salary descending."
         ),
-        "max_tokens": 500,
     },
     {
         "name": "Explain Like I'm 5",
@@ -168,7 +164,6 @@ TASKS = [
             "Use simple analogies and avoid technical jargon. "
             "Keep it under 150 words."
         ),
-        "max_tokens": 200,
     },
     {
         "name": "Algorithm Design",
@@ -183,7 +178,6 @@ TASKS = [
             "3. Python implementation\n\n"
             "Example: 'tact coa' \u2192 True (arranges to 'taco cat' or 'atco cta')"
         ),
-        "max_tokens": 400,
     },
 ]
 
@@ -245,11 +239,12 @@ def main():
 
         payload = json.dumps({
             "messages": [{"role": "user", "content": task["prompt"]}],
-            "max_tokens": task["max_tokens"],
             "temperature": 0.1,
         })
 
+        t0 = time.time()
         raw = run_curl(payload)
+        duration_s = round(time.time() - t0, 1)
 
         try:
             data = json.loads(raw)
@@ -261,6 +256,7 @@ def main():
                 "category": task["category"],
                 "error": "invalid JSON response",
                 "tps": 0,
+                "duration_s": duration_s,
                 "draft_n": 0,
                 "draft_accepted": 0,
                 "prompt_tokens": 0,
@@ -277,6 +273,7 @@ def main():
                 "category": task["category"],
                 "error": data["error"],
                 "tps": 0,
+                "duration_s": duration_s,
                 "draft_n": 0,
                 "draft_accepted": 0,
                 "prompt_tokens": 0,
@@ -299,19 +296,21 @@ def main():
             total_count += 1
 
         draft_pct = (100 * draft_acc / draft_n) if draft_n > 0 else 0
-        print(f"OK  {tps:.1f} tok/s  draft={draft_acc}/{draft_n} ({draft_pct:.0f}%)")
+        print(f"OK  {tps:.1f} tok/s  [{duration_s:.0f}s]  draft={draft_acc}/{draft_n} ({draft_pct:.0f}%)")
 
         results.append({
             "task": i + 1,
             "name": task["name"],
             "category": task["category"],
             "tps": round(tps, 1),
+            "duration_s": duration_s,
             "draft_n": draft_n,
             "draft_accepted": draft_acc,
             "prompt_tokens": prompt_n,
             "generated_tokens": pred_n,
             "finish_reason": finish,
             "content_length": len(content),
+            "content": content,
         })
 
     # ---- write JSON ----
@@ -335,6 +334,7 @@ def main():
                 continue
             f.write(f"  Tokens:  {r['prompt_tokens']} out / {r['generated_tokens']} gen\n")
             f.write(f"  Speed:   {r['tps']} tok/s\n")
+            f.write(f"  Time:    {r['duration_s']:.0f}s\n")
             if r['draft_n'] > 0:
                 dpct = round(100 * r['draft_accepted'] / r['draft_n'])
                 f.write(f"  Draft:   {r['draft_accepted']}/{r['draft_n']} ({dpct}%)\n")
@@ -352,12 +352,13 @@ def main():
 
     # ---- print table ----
     print()
-    print(f"{'#':<4} {'Task':<22} {'tok/s':>8} {'draft%':>7} {'tokens':>7}")
-    print(f"{'---':<4} {'----------------------':<22} {'-------':>8} {'-------':>7} {'-------':>7}")
+    print(f"{'#':<4} {'Task':<22} {'tok/s':>8} {'draft%':>7} {'tokens':>7} {'time':>7}")
+    print(f"{'---':<4} {'----------------------':<22} {'-------':>8} {'-------':>7} {'-------':>7} {'-------':>7}")
     for r in results:
         dpct = round(100 * r['draft_accepted'] / r['draft_n']) if r['draft_n'] > 0 else 0
         tps_str = f"{r['tps']:.1f}" if "error" not in r else "ERR"
-        print(f"{r['task']:<4} {r['name']:<22} {tps_str:>8} {dpct:>6}% {r['generated_tokens']:>7}")
+        time_str = f"{r['duration_s']:.0f}s" if "duration_s" in r else ""
+        print(f"{r['task']:<4} {r['name']:<22} {tps_str:>8} {dpct:>6}% {r['generated_tokens']:>7} {time_str:>7}")
     print()
 
     print(f"[{datetime.now():%H:%M:%S}] Done!  Avg speed: {avg_tps:.1f} tok/s")

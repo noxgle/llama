@@ -223,6 +223,13 @@ curl -s http://192.168.200.38:8089/health
 - `docker-compose.test.yml` is experimental (legacy build args not consumed by current Dockerfile).
 - `sync.sh` comments/output are partly Polish; ignore for docs language policy.
 
+## Knowledge benchmarks
+
+All results in `scripts/benchmark-knowledge-compare.md` (multi-model comparison table + per-model detail).
+
+To run: `python3 scripts/benchmark-knowledge.sh` (local) or via `HOST=root@...` (remote).
+Requires unlimited `max_tokens` and 300s timeout for valid results (model needs 1000-2500 tokens per task).
+
 ## Recovery
 - If container crashes or MTP segfaults: check `/var/log/llama-gpu-watchdog.log`, restart via `docker compose down && docker compose up -d`.
 - If VRAM exhausted: reduce `CTX`, switch to smaller model config, or reduce `BATCH`/`UBATCH`.
