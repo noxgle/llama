@@ -253,3 +253,29 @@ Requires unlimited `max_tokens` and 300s timeout for valid results (model needs 
 ## Recovery
 - If container crashes or MTP segfaults: check `/var/log/llama-gpu-watchdog.log`, restart via `docker compose down && docker compose up -d`.
 - If VRAM exhausted: reduce `CTX`, switch to smaller model config, or reduce `BATCH`/`UBATCH`.
+
+## Q5_K_M router benchmark (2026-06-25, dev .38)
+
+### Qwen3.6 35B A3B MTP via router (`--models-preset`)
+Router mode tested with both Q4 (HF download) and Q5 (local file). Both models use MTP speculative decoding. Models are defined in `configs/router-preset.ini` with per-model settings.
+
+| Metric | Q4_K_M | Q5_K_M |
+|--------|:------:|:------:|
+| File source | HF (`--hf-repo`) | Local (`--model`) |
+| File size | ~15.7 GB | ~26 GB (25.2 GiB) |
+| VRAM (idle) | 2069 MiB | 5393 MiB |
+| VRAM (inference) | 5231/6138 MiB (85%) | 5393/6138 MiB (88%) |
+| Gen speed (500 tk) | ~28.4 tok/s | ~28.2 tok/s |
+| Gen speed (short) | ~31-33 tok/s | ~30-34 tok/s |
+| Prompt speed (short) | ~47 t/s | ~42 t/s |
+| MTP acceptance | 72-81% | 86% |
+| RAM usage | ~18 GB | ~20 GB |
+
+**Key observation:** Q5_K_M is a meaningful quality upgrade over Q4_K_M with only ~10% throughput penalty (~28 vs ~31 tok/s). VRAM headroom is tighter (88% vs 85%) but stable. Q5 file is 26 GB vs 15.7 GB for Q4 — requires more disk space and download time.
+
+**Router model switching caveat:** Switching models via `POST /models/load` doesn't always free VRAM from the previous model. A `docker restart llama-router` is sometimes needed between model swaps on this GPU-constrained host.
+
+### Config files
+- `configs/router.env` — router mode config (host, port, threads, MODELS_PRESET)
+- `configs/router-preset.ini` — model definitions with per-model ctx, batch, MTP, cpu-moe
+- `configs/qwen3.6-35ba3b-mtp-unsloth-q5.env` — standalone Q5 config (for non-router use)

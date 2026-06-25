@@ -372,6 +372,35 @@ Two Qwen3.6 variants are pre-configured:
 
 The Q5 model file (26 GB) must be downloaded first — see `install-llama.sh qwen-q5`.
 
+#### ⚠️ Poznane ograniczenia routera (stan na b9770, RTX A2000 6 GB)
+
+- **VRAM leak przy przełączaniu modeli** — `POST /models/load` nie zwalnia w pełni VRAM
+  poprzedniego modelu. Przełączenie Q4↔Q5 na karcie 6 GB wymaga
+  `docker restart llama-router` pomiędzy switchami, inaczej nowy model dostaje OOM.
+  Potwierdzone w testach 2026-06-25: Q5 zajmuje ~5393 MiB, Q4 ~5231 MiB — łączny
+  VRAM obu modeli (~10.5 GB) przekracza fizyczną pamięć karty.
+  Patrz [Stale CUDA contexts](#stale-cuda-contexts-vram-leak-after-container-crash-loop).
+
+- **Brak auto-restartu child processów** — gdy `llama-server` dziecka padnie (np. OOM
+  przy alokacji MTP context), router loguje błąd (`instance … exited with status 1`)
+  ale nie próbuje automatycznie przeładować modelu. W osobnym LXC `--restart unless-stopped`
+  + systemd załatwiają to bez konfiguracji.
+
+- **Single point of failure** — restart routera (`docker restart`) restartuje wszystkie
+  child processy, nie tylko wybrany model. Przy osobnych kontenerach można restartować
+  modele niezależnie.
+
+- **Brak izolacji GPU** — oba modele współdzielą tę samą kartę. W osobnym LXC każdy
+  dostaje własne urządzenia CUDA, co zapobiega przypadkowemu wyczerpaniu VRAM przez
+  drugi model.
+
+**Rekomendacja:** Router sprawdza się na dev do szybkiego przełączania między wariantami
+kwantyzacji (Q4↔Q5) przy okazji benchmarków. W produkcji (6 GB VRAM) zalecane są
+**osobne LXC / osobne maszyny** — każdy model ma własny watchdog,
+auto-restart i izolację zasobów. Router nabiera sensu na kartach ≥24 GB VRAM (RTX 4090,
+A5000), gdzie 2-3 modele mogą wisieć załadowane współbieżnie i przełączanie jest
+natychmiastowe.
+
 ### Important environment variables
 
 > **CPUMOE performance note:** Setting `CPUMOE=exps=CPU` (current default) routes MoE expert weights through CPU, saving VRAM but reducing throughput. Setting `CPUMOE=` (empty) keeps all experts on GPU and improves throughput by ~2–5 tok/s, but increases VRAM usage. Adjust based on your VRAM headroom: with 160K context at ~4483 MiB (BATCH=512), setting `CPUMOE=` is not recommended due to limited headroom.
