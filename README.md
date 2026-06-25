@@ -43,12 +43,12 @@ Key values:
 - `SPEC_TYPE=draft-mtp`
 - `SPEC_DRAFT_N_MAX=2`
 - `FLASHATTN=on`
-- `BATCH=512`, `UBATCH=512`
+- `BATCH=3072`, `UBATCH=1536` (baseline was 512/512; optimized 2026-06-25, see [Batch optimization](#batch-optimization))
 
 Typical steady-state (after full startup stabilization):
 
-- Throughput: **~30.1 tok/s** (short prompts), ~18–19 tok/s (30K+ prompt prefill), ~14–15 tok/s during sustained generation of 4K+ tokens (KV cache pressure on 6 GB VRAM)
-- VRAM: ~4.4–4.8 GiB / 6.0 GiB (at 160K context, BATCH=512, varies with prompt cache accumulation)
+- Throughput: **~30.5 tok/s** (short prompts), ~25 tok/s (60K+ prompt prefill at 505 t/s), ~23–24 tok/s during sustained generation of 4K+ tokens
+- VRAM: ~4.4–4.8 GiB / 6.0 GiB at idle, ~5.3 GiB during large-prompt inference (at 160K context, BATCH=3072)
 
 ### Gemma 4 26B Alternative
 
@@ -331,7 +331,7 @@ systemctl enable --now llama@qwen   # auto-start on boot
 | `GPU_LAYERS_DRAFT` | Draft model GPU offload | (embedded) | `99` (full draft on GPU) |
 | `CPUMOE` | MoE expert placement | (dense model, N/A) | `exps=CPU` |
 | `FLASHATTN` | Flash Attention | `on` | `on` |
-| `BATCH` / `UBATCH` | Batch settings | `512` / `512` | `512` / `512` |
+| `BATCH` / `UBATCH` | Batch settings | `3072` / `1536` | `512` / `512` |
 | `THREADS` / `THREADS_BATCH` | CPU thread settings | `6` / `6` | `6` / `6` |
 | `CTX_CHECKPOINTS` | KV context checkpoint slots per prompt | `4` | `4` |
 | `SPEC_TYPE` | Speculative decoding mode | `draft-mtp` | `draft-mtp` |
@@ -420,14 +420,14 @@ systemctl enable --now llama-gpu-watchdog.timer
 
 ## Performance
 
-### Current profile (Qwen3.6 35B-A3B MTP Unsloth)
+### Current profile (Qwen3.6 35B-A3B MTP Unsloth, BATCH=3072/UBATCH=1536)
 
 | Context | MTP | Throughput | VRAM |
 |---|---:|---:|---:|
 | 16K | N_MAX=3 | ~20.1 tok/s | ~4043 MiB |
 | 32K | N_MAX=1 | ~20.9 tok/s | ~4047 MiB |
 | 128K | N_MAX=1 | ~21.7 tok/s | ~4493 MiB |
-| **160K** | **N_MAX=2** | **~30.1 tok/s** | **~4473 MiB** |
+| **160K** | **N_MAX=2** | **~30.5 tok/s** | **~4473 MiB** (idle) / ~5311 MiB (inference) |
 | 176K\* | N_MAX=2 | ~23.1 tok/s | ~5555 MiB |
 | 192K† | N_MAX=2 | ~22.4 tok/s | ~5650 MiB |
 
@@ -436,7 +436,8 @@ Upstream improvements (PR #23287) enable `backend_sampling=1` — MTP draft samp
 Throughput degrades to ~14–15 tok/s during sustained generation of 4K+ tokens per slot (KV cache pressure). Recovers to ~23 tok/s after slot release.
 \* 176K deprecated — reduced to 160K due to MTP CUDA OOM on 6 GB.
 † 192K deprecated — reduced due to VRAM pressure.
-‡ GPU upgraded from GTX 1060 6GB (Pascal) to RTX A2000 6GB (Ampere, Tensor Cores). Prefill speed improved from ~130 to ~442 tok/s (~3.4×). Throughput improved from ~24.1 to ~30.1 tok/s.
+‡ GPU upgraded from GTX 1060 6GB (Pascal) to RTX A2000 6GB (Ampere, Tensor Cores). Prefill speed improved from ~130 to ~505 tok/s (~3.9×). Throughput improved from ~24.1 to ~30.5 tok/s.
+§ BATCH=3072/UBATCH=1536 optimized 2026-06-25: prefill +88% (269→505 t/s), total time −35% (294→192s) for ~60K prompts. See [Batch optimization](#batch-optimization).
 
 ### Gemma 4 26B profile
 
@@ -463,6 +464,30 @@ Throughput degrades to ~14–15 tok/s during sustained generation of 4K+ tokens 
 
 Both models scored A in all 10 tasks. Gemma4 is more concise (2× fewer tokens, 2× faster total time). Qwen is faster per-token but more verbose.
 Full details: [`scripts/benchmark-knowledge-compare.md`](scripts/benchmark-knowledge-compare.md).
+
+### Batch optimization
+
+Large-prompt benchmark (~60K tokens Qwen tokenized) tested 8 BATCH/UBATCH combinations on RTX A2000 6 GB with Qwen3.6 35B A3B MTP. Each config tested after clean server restart with a unique prompt to avoid KV cache contamination.
+
+| BATCH | UBATCH | Prefill | Gen | Total | VRAM | Gain |
+|-------|--------|:-:|:-:|:-:|:-:|:-:|
+| 512 | 512 | 269 t/s | 25.1 t/s | 294s | 4527 MiB | baseline |
+| 1024 | 256 | 164 t/s | 25.5 t/s | 445s | 4403 MiB | −39% |
+| 1536 | 512 | 269 t/s | 26.2 t/s | 294s | 4527 MiB | 0% |
+| 2048 | 1024 | 416 t/s | 25.0 t/s | 210s | 4911 MiB | −29% |
+| 2560 | 1280 | 462 t/s | 24.9 t/s | 200s | 5111 MiB | −32% |
+| **3072** | **1536** | **505 t/s** | **25.5 t/s** | **192s** | **5311 MiB** | **−35% ★** |
+| 4096 | 2048 | 569 t/s | 25.8 t/s | 181s | 5717 MiB | −38% |
+| 5120 | 2560 | — | — | OOM | OOM | — |
+
+**Key findings:**
+- **UBATCH must be close to BATCH.** Config 1024/UBATCH=256 was 39% _slower_ than baseline (164 vs 269 t/s prefill) despite larger BATCH — the micro-batch overhead outweighs any gain.
+- **Prefill scales linearly with BATCH** up to ~4096 on RTX A2000 (269 → 569 t/s, +112%). Each doubling of BATCH roughly doubles prefill throughput.
+- **Chosen config: 3072/1536** — best balance of speed (+88% prefill, −35% total time) vs VRAM headroom (5311/6138 MiB ≈ 86%).
+- **Danger zone:** 4096/2048 works (93% VRAM, fastest), but 5120/2560 causes OOM during MTP draft context allocation.
+- **Generation speed is unaffected** by batch size (~25 t/s across all configs) — it's dominated by memory bandwidth on the A2000 for the 22 GB model.
+
+Benchmark script: [`scripts/benchmark-batch.sh`](scripts/benchmark-batch.sh) (generates ~60K-token prompt, measures prefill/gen speed and VRAM; set `N_RUNS=1` for single probe, requires clean server restart between configs).
 
 ---
 
