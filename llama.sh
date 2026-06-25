@@ -28,12 +28,15 @@ CONFIG_DIR="$ROOT/configs"
 declare -A MODEL_CONTAINER MODEL_PORT MODEL_CONFIG
 MODEL_CONTAINER[qwen]="llama-qwen"
 MODEL_CONTAINER[gemma4]="llama-gemma4"
+MODEL_CONTAINER[qwen-q5]="llama-qwen-q5"
 
 MODEL_PORT[qwen]="8089"
 MODEL_PORT  [gemma4]="8089"
+MODEL_PORT  [qwen-q5]="8089"
 
 MODEL_CONFIG[qwen]="qwen3.6-35ba3b-mtp-unsloth.env"
 MODEL_CONFIG[gemma4]="gemma4-26b-q4-k-m-mtp.env"
+MODEL_CONFIG[qwen-q5]="qwen3.6-35ba3b-mtp-unsloth-q5.env"
 
 ALL_MODELS=("${!MODEL_CONTAINER[@]}")
 
@@ -44,7 +47,7 @@ usage() {
   echo "Usage: $(basename "$0") {start|stop|restart|status|logs|pull} [model]"
   echo ""
   echo "Commands:"
-  echo "  start    <model>   Start container for model (qwen|gemma4)"
+  echo "  start    <model>   Start container for model (qwen|gemma4|qwen-q5)"
   echo "  stop                Stop and remove all llama containers"
   echo "  restart  <model>   Stop + start model"
   echo "  status             Show running llama containers"

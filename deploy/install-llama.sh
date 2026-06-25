@@ -4,6 +4,7 @@
 #
 # Usage:
 #   bash deploy/install-llama.sh qwen          # from repo checkout
+#   bash deploy/install-llama.sh qwen-q5       # Q5_K_M variant
 #   bash <(curl -fsSL https://raw.githubusercontent.com/noxgle/llama/master/deploy/install-llama.sh) qwen
 #
 # Prerequisites:
@@ -46,17 +47,18 @@ LLAMA_IMAGE="${LLAMA_IMAGE:-ghcr.io/noxgle/llama-server:latest}"
 
 # Model validation
 case "$MODEL" in
-  qwen|gemma4) ;;
+  qwen|gemma4|qwen-q5) ;;
   *)
     cat >&2 <<EOF
-Usage: $(basename "$0") {qwen|gemma4}
+Usage: $(basename "$0") {qwen|gemma4|qwen-q5}
 
 Installs Docker, nvidia-container-toolkit, and a llama.cpp server
 with the selected model, configured for autostart on port 8089.
 
 Examples:
-  bash $(basename "$0") qwen       # Qwen3.6 35B (production, ~30 tok/s)
-  bash $(basename "$0") gemma4     # Gemma4 26B (alternative, ~27 tok/s)
+  bash $(basename "$0") qwen        # Qwen3.6 Q4_K_M (production, ~31 tok/s)
+  bash $(basename "$0") gemma4      # Gemma4 26B (alternative, ~27 tok/s)
+  bash $(basename "$0") qwen-q5     # Qwen3.6 Q5_K_M (higher quality, ~28 tok/s)
 EOF
     exit 1
     ;;
@@ -280,7 +282,10 @@ fi
 # ==================================================================
 heading "Step 7/10 — Disk space check"
 
-MODEL_MIN_GB=25  # Qwen3.6 Q4_K_M ~22 GB, Gemma4 Q4_K_M ~16 GB
+case "$MODEL" in
+  qwen-q5) MODEL_MIN_GB=35 ;;  # Q5_K_M ~26 GB + download + buffer
+  *)       MODEL_MIN_GB=25 ;;  # Q4_K_M ~22 GB, Gemma4 Q4_K_M ~16 GB
+esac
 AVAIL_GB=$(df -BG / | awk 'NR==2{gsub(/G/,"",$4); print $4+0}')
 if [ "$AVAIL_GB" -lt "$MODEL_MIN_GB" ]; then
   warn "Only ${AVAIL_GB}G available on /, model needs ~${MODEL_MIN_GB}G for download + cache"
@@ -344,6 +349,20 @@ case "$MODEL" in
     warn ""
     warn "See $INSTALL_DIR/AGENTS.md for details."
     warn "================================================================"
+    ;;
+  qwen-q5)
+    Q5_URL="https://huggingface.co/unsloth/Qwen3.6-35B-A3B-MTP-GGUF/resolve/main/Qwen3.6-35B-A3B-UD-Q5_K_M.gguf"
+    Q5_PATH="$INSTALL_DIR/models/qwen-q5-k-m.gguf"
+    info "Downloading Q5_K_M GGUF (26 GB) directly to $Q5_PATH ..."
+    info "This will take 15-30 minutes depending on your connection."
+    if curl -L -o "$Q5_PATH" "$Q5_URL" 2>&1; then
+      info "Q5_K_M model downloaded successfully ($(ls -lh "$Q5_PATH" | awk '{print $5}'))"
+    else
+      warn "Download failed or was interrupted."
+      warn "To resume later:  curl -C - -L -o $Q5_PATH $Q5_URL"
+      warn ""
+      warn "The server won't start until the file is present."
+    fi
     ;;
 esac
 
