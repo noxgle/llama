@@ -52,10 +52,30 @@ The `llama.sh` script avoids this issue entirely — it reads configs directly v
 - **Model:** `unsloth/Qwen3.6-35B-A3B-MTP-GGUF:UD-Q4_K_M` (HF Unsloth dynamic GGUF)
 - **Context:** 163840 (160K)
 - **MTP:** `SPEC_TYPE=draft-mtp`, `SPEC_DRAFT_N_MAX=2` (~79% accept rate, ~30.1 tok/s)
-- **VRAM:** ~4473/6144 MiB, RAM: ~20/30 GiB
+- **BATCH=3072**, **UBATCH=1536** (baseline was 512/512; optimized 2026-06-25)
+- **VRAM:** ~4473/6144 MiB (prefill), ~5311/6144 MiB (inference), RAM: ~20/30 GiB
 - **LLama.cpp commit:** `75ad0b2` (tag `b9770`, deployed 2026-06-23, built locally & scp'd)
 - **Benchmark (A/B vs 8086439):** +3% throughput (29.2→30.1 tok/s)
 - Use this as the default reference. All Gemma 4 configs are legacy/archive.
+
+### Batch size optimization (2026-06-25, dev .38)
+Large-prompt benchmark (~60k tokens Qwen tokenized) tested BATCH/UBATCH combos on RTX A2000 6 GB:
+| BATCH | UBATCH | Prefill | Gen | Total | VRAM | Gain |
+|-------|--------|:-:|:-:|:-:|:-:|:-:|
+| 512 | 512 | 269 t/s | 25.1 t/s | 294s | 4527 MiB | baseline |
+| 1024 | 256 | 164 t/s | 25.5 t/s | 445s | 4403 MiB | −39% ❌ |
+| 1536 | 512 | 269 t/s | 26.2 t/s | 294s | 4527 MiB | 0% |
+| 2048 | 1024 | 416 t/s | 25.0 t/s | 210s | 4911 MiB | −29% |
+| 2560 | 1280 | 462 t/s | 24.9 t/s | 200s | 5111 MiB | −32% |
+| **3072** | **1536** | **505 t/s** | **25.5 t/s** | **192s** | **5311 MiB** | **−35% ⭐** |
+| 4096 | 2048 | 569 t/s | 25.8 t/s | 181s | 5717 MiB | −38% ⚡ |
+| 5120 | 2560 | — | — | OOM | OOM | 💀 |
+- **Key insight:** UBATCH must ≈ BATCH (1024/256 was terrible at 164 t/s prefill). Prefill scales linearly with BATCH up to ~4096 on A2000.
+- **Chosen config (3072/1536):** Best balance of speed (+88% prefill, −35% total time) vs VRAM headroom (~86%).
+- **Danger zone:** 4096/2048 works (93% VRAM) but 5120/2560 OOMs on MTP draft context allocation.
+
+### Scripts
+- `scripts/benchmark-batch.sh` — generates ~60k-token prompt, measures prefill/gen speed, VRAM. Use `N_RUNS=1` env var. Requires clean restart between configs (KV cache contamination).
 
 ## Gemma 4 test results (2026-06-23)
 
