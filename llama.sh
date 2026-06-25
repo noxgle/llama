@@ -29,14 +29,17 @@ declare -A MODEL_CONTAINER MODEL_PORT MODEL_CONFIG
 MODEL_CONTAINER[qwen]="llama-qwen"
 MODEL_CONTAINER[gemma4]="llama-gemma4"
 MODEL_CONTAINER[qwen-q5]="llama-qwen-q5"
+MODEL_CONTAINER[router]="llama-router"
 
 MODEL_PORT[qwen]="8089"
-MODEL_PORT  [gemma4]="8089"
-MODEL_PORT  [qwen-q5]="8089"
+MODEL_PORT[gemma4]="8089"
+MODEL_PORT[qwen-q5]="8089"
+MODEL_PORT[router]="8089"
 
 MODEL_CONFIG[qwen]="qwen3.6-35ba3b-mtp-unsloth.env"
 MODEL_CONFIG[gemma4]="gemma4-26b-q4-k-m-mtp.env"
 MODEL_CONFIG[qwen-q5]="qwen3.6-35ba3b-mtp-unsloth-q5.env"
+MODEL_CONFIG[router]="router.env"
 
 ALL_MODELS=("${!MODEL_CONTAINER[@]}")
 
@@ -47,7 +50,8 @@ usage() {
   echo "Usage: $(basename "$0") {start|stop|restart|status|logs|pull} [model]"
   echo ""
   echo "Commands:"
-  echo "  start    <model>   Start container for model (qwen|gemma4|qwen-q5)"
+  echo "  start    <model>   Start container for model (qwen|gemma4|qwen-q5|router)"
+  echo "                     router = dynamic model switching (see configs/router-preset.ini)"
   echo "  stop                Stop and remove all llama containers"
   echo "  restart  <model>   Stop + start model"
   echo "  status             Show running llama containers"
@@ -103,7 +107,7 @@ build_run_args() {
   source "$config_file"
   set +a
 
-  # Base docker arguments
+  # Base docker arguments (image is passed separately — must be last)
   DOCKER_ARGS=(
     --name "$container"
     --restart unless-stopped
@@ -113,11 +117,25 @@ build_run_args() {
     -v "$ROOT/models:/models:ro"
     -e NVIDIA_VISIBLE_DEVICES=all
     -d
-    "$IMAGE"
   )
 
   # ---- llama-server arguments (mirrors docker-compose.yml command:) ----
   LLAMA_ARGS=()
+
+  # Router mode — no fixed model, dynamic loading via INI presets
+  if [ -n "${MODELS_PRESET:-}" ]; then
+    DOCKER_ARGS+=(-v "$ROOT/configs:/configs:ro")
+    LLAMA_ARGS+=(--models-preset "$MODELS_PRESET")
+    LLAMA_ARGS+=(--models-max "${MODELS_MAX:-4}")
+    LLAMA_ARGS+=(--host "${HOST:-0.0.0.0}")
+    LLAMA_ARGS+=(--port "${PORT:-8089}")
+    LLAMA_ARGS+=(--threads "${THREADS:-6}")
+    LLAMA_ARGS+=(--threads-batch "${THREADS_BATCH:-6}")
+    LLAMA_ARGS+=(--parallel "${PARALLEL:-1}")
+    LLAMA_ARGS+=(--poll "${POLL:-50}")
+
+  # Normal (single-model) mode
+  else
 
   # Model source: local file (-m) or HuggingFace repo (-hf)
   if [ -n "${MODEL_FLAG:-}" ]; then
@@ -163,6 +181,7 @@ build_run_args() {
     LLAMA_ARGS+=(--spec-draft-n-min "${SPEC_DRAFT_N_MIN:-0}")
     LLAMA_ARGS+=(--spec-draft-p-min "${SPEC_DRAFT_P_MIN:-0.0}")
   fi
+  fi
 }
 
 # ------------------------------------------------------------------
@@ -201,7 +220,7 @@ cmd_start() {
   echo ">>> Starting $model ($container) on port $port ..."
   build_run_args "$config_file" "$container" "$port"
 
-  docker run "${DOCKER_ARGS[@]}" "${LLAMA_ARGS[@]}"
+  docker run "${DOCKER_ARGS[@]}" "$IMAGE" "${LLAMA_ARGS[@]}"
 
   echo ">>> Container $container started."
   echo "    Health: http://localhost:$port/health"
