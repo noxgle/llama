@@ -76,6 +76,11 @@ Typical steady-state:
 - VRAM: **~5.4 GiB / 6.0 GiB** (at 128K context, BATCH=512), RAM: ~15/30 GiB
 - Draft acceptance rate: **~85%**
 
+### Router mode (experimental)
+
+Dynamically load/unload models via API — no restart needed. Start with `llama.sh start router`,
+then switch between Q4 and Q5 with `POST /models/load`. See [Router mode](#router-mode--dynamic-model-switching) below.
+
 **Fresh install?** Follow "Post-Install: Gemma4 manual steps" below for draft model
 download and symlink setup.
 
@@ -332,6 +337,41 @@ systemctl enable --now llama@qwen   # auto-start on boot
 
 > **Note:** Gemma 4 uses local GGUF symlinks (`MODEL_FLAG=-m`, `DRAFT_FLAG=-md`). Ensure the model blobs exist in the HF cache first. See `AGENTS.md` → "HF download bug" for details.
 
+### Router mode — dynamic model switching
+
+> **Experimental** — tested on b9770 (RTX A2000). Child processes inherit all per-model settings.
+
+Starts a model router that loads/unloads models on demand via API — no restart needed.
+
+```bash
+# Start router
+/opt/llama/llama.sh start router
+
+# Load Q4 (or send a chat request with "model": "qwen-q4")
+curl -X POST http://localhost:8089/models/load \
+  -H "Content-Type: application/json" \
+  -d '{"model": "qwen-q4"}'
+
+# Switch to Q5 when coding — models load in ~50-60s
+curl -X POST http://localhost:8089/models/load \
+  -H "Content-Type: application/json" \
+  -d '{"model": "qwen-q5"}'
+```
+
+Models are defined in [`configs/router-preset.ini`](configs/router-preset.ini) with per-model settings
+(ctx, batch, MTP, GPU layers, etc.). The router spawns child processes for each model and
+proxies requests. Least Recently Used (LRU) models are unloaded when memory fills up.
+Maximum simultaneous models: 4 (default, adjust with `MODELS_MAX`).
+
+Two Qwen3.6 variants are pre-configured:
+
+| Preset name | Source | Quality | Throughput | VRAM (inference) |
+|---|---|---|---|---:|
+| `qwen-q4` | `-hf unsloth/...:UD-Q4_K_M` | Good | ~29.8 tok/s | ~5221 MiB |
+| `qwen-q5` | `-m /models/qwen-q5-k-m.gguf` | Higher | ~28.6 tok/s | ~5471 MiB |
+
+The Q5 model file (26 GB) must be downloaded first — see `install-llama.sh qwen-q5`.
+
 ### Important environment variables
 
 > **CPUMOE performance note:** Setting `CPUMOE=exps=CPU` (current default) routes MoE expert weights through CPU, saving VRAM but reducing throughput. Setting `CPUMOE=` (empty) keeps all experts on GPU and improves throughput by ~2–5 tok/s, but increases VRAM usage. Adjust based on your VRAM headroom: with 160K context at ~4483 MiB (BATCH=512), setting `CPUMOE=` is not recommended due to limited headroom.
@@ -377,11 +417,18 @@ ssh root@192.168.200.38 'curl -s http://localhost:8089/health'
 ssh root@192.168.200.38 '/opt/llama/llama.sh start qwen'
 ssh root@192.168.200.38 '/opt/llama/llama.sh start qwen-q5'
 ssh root@192.168.200.38 '/opt/llama/llama.sh start gemma4'
+ssh root@192.168.200.38 '/opt/llama/llama.sh start router'
 ssh root@192.168.200.38 '/opt/llama/llama.sh stop'
 ssh root@192.168.200.38 '/opt/llama/llama.sh status'
 
 # Restart after config edit (sync.sh push first, then restart)
 ssh root@192.168.200.38 '/opt/llama/llama.sh restart qwen-q5'
+
+# Router mode: switch models without restart
+ssh root@192.168.200.38 'curl -X POST http://localhost:8089/models/load \
+  -H "Content-Type: application/json" \
+  -d '\''{"model": "qwen-q5"}'\'
+```
 
 # Guarded benchmark (fails fast on GPU fallback)
 HOST=root@192.168.200.38 PROJECT_DIR=/opt/llama bash scripts/benchmark-guarded-remote.sh
