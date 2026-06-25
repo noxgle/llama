@@ -31,9 +31,12 @@ This repository operates on:
 
 ### Current Production Profile
 
-Canonical production config file:
+Two quant variants of Qwen3.6 are available:
 
-- `configs/qwen3.6-35ba3b-mtp-unsloth.env`
+- **Q4_K_M (default)** — `configs/qwen3.6-35ba3b-mtp-unsloth.env` — ~30.5 tok/s, 22.7 GB model
+- **Q5_K_M (higher quality)** — `configs/qwen3.6-35ba3b-mtp-unsloth-q5.env` — ~28.6 tok/s, 26 GB model
+
+#### Q4_K_M (production default)
 
 Key values:
 
@@ -167,6 +170,9 @@ bash <(curl -fsSL https://raw.githubusercontent.com/noxgle/llama/master/deploy/i
 
 # Gemma4 26B (alternative, ~27 tok/s, 128K context)
 bash <(curl -fsSL https://raw.githubusercontent.com/noxgle/llama/master/deploy/install-llama.sh) gemma4
+
+# Qwen3.6 Q5_K_M (higher quality, ~28 tok/s, 26 GB model file)
+bash <(curl -fsSL https://raw.githubusercontent.com/noxgle/llama/master/deploy/install-llama.sh) qwen-q5
 ```
 
 The script installs Docker + nvidia-container-toolkit, pulls the server image
@@ -249,8 +255,11 @@ The server should load the model in ~50–60s (verify with `curl http://localhos
 # Debian 12+ or Ubuntu 22.04+ with root access and GPU passthrough
 bash <(curl -fsSL https://raw.githubusercontent.com/noxgle/llama/master/deploy/install-llama.sh) qwen
 
+# Q5_K_M variant (higher quality, 26 GB model, needs ≥35 GB free)
+bash <(curl -fsSL https://raw.githubusercontent.com/noxgle/llama/master/deploy/install-llama.sh) qwen-q5
+
 # The script installs Docker + NVIDIA + llama-server and starts on port 8089.
-# Minimum disk: 70 GB (80 GB recommended for Qwen3.6 model ~22 GB).
+# Minimum disk: 70 GB (80 GB recommended for Qwen3.6 model ~22 GB; ≥35 GB for Q5 variant).
 ```
 
 ### Check existing server
@@ -279,6 +288,9 @@ ssh root@192.168.200.38 'curl -s http://localhost:8089/v1/chat/completions \
 # Qwen3.6-35B (production, ~30.1 tok/s, 160K)
 cp configs/qwen3.6-35ba3b-mtp-unsloth.env .env
 
+# Qwen3.6-35B Q5_K_M (higher quality, ~28.6 tok/s, local file)
+cp configs/qwen3.6-35ba3b-mtp-unsloth-q5.env .env
+
 # Gemma 4 26B A4B (alternative, ~27.4 tok/s, 128K)
 cp configs/gemma4-26b-q4-k-m-mtp.env .env
 
@@ -294,7 +306,10 @@ ssh root@192.168.200.38
 # Start Qwen3.6 (production, port 8089)
 /opt/llama/llama.sh start qwen
 
-# Switch to Gemma4 (port 8089) — stops Qwen first
+# Switch to Qwen3.6 Q5_K_M (higher quality, port 8089)
+/opt/llama/llama.sh start qwen-q5
+
+# Switch to Gemma4 (port 8089) — stops previous model first
 /opt/llama/llama.sh start gemma4
 
 # Check status
@@ -304,7 +319,7 @@ ssh root@192.168.200.38
 /opt/llama/llama.sh stop
 
 # Tail logs
-/opt/llama/llama.sh logs qwen
+/opt/llama/llama.sh logs qwen-q5
 ```
 
 The script reads model config from `configs/<model>.env` and passes the same flags as the old compose `command:` section. Image source: `ghcr.io/noxgle/llama-server:latest` (or override with `LLAMA_IMAGE`).
@@ -321,21 +336,21 @@ systemctl enable --now llama@qwen   # auto-start on boot
 
 > **CPUMOE performance note:** Setting `CPUMOE=exps=CPU` (current default) routes MoE expert weights through CPU, saving VRAM but reducing throughput. Setting `CPUMOE=` (empty) keeps all experts on GPU and improves throughput by ~2–5 tok/s, but increases VRAM usage. Adjust based on your VRAM headroom: with 160K context at ~4483 MiB (BATCH=512), setting `CPUMOE=` is not recommended due to limited headroom.
 
-| Variable | Description | Qwen3.6 (production) | Gemma4 (alternative) |
-|---|---|---|---|
-| `MODEL` / `MODEL_FLAG` | Model selector | `MODEL=unsloth/...:UD-Q4_K_M` (HF) | `MODEL_FLAG=-m` + `MODEL=/models/gemma4-26b-q4-k-m.gguf` (local) |
-| `DRAFT_MODEL` / `DRAFT_FLAG` | Draft model | (embedded MTP head) | `DRAFT_FLAG=-md` + `DRAFT_MODEL=/models/gemma4-26b-q8-mtp.gguf` |
-| `CTX` | Context length | `163840` | `131072` |
-| `N_PREDICT` | Token cap (`-1` = unlimited) | `-1` | `-1` |
-| `NGLAYERS` | Layers offloaded to GPU | `999` | `999` |
-| `GPU_LAYERS_DRAFT` | Draft model GPU offload | (embedded) | `99` (full draft on GPU) |
-| `CPUMOE` | MoE expert placement | (dense model, N/A) | `exps=CPU` |
-| `FLASHATTN` | Flash Attention | `on` | `on` |
-| `BATCH` / `UBATCH` | Batch settings | `3072` / `1536` | `512` / `512` |
-| `THREADS` / `THREADS_BATCH` | CPU thread settings | `6` / `6` | `6` / `6` |
-| `CTX_CHECKPOINTS` | KV context checkpoint slots per prompt | `4` | `4` |
-| `SPEC_TYPE` | Speculative decoding mode | `draft-mtp` | `draft-mtp` |
-| `SPEC_DRAFT_N_MAX` | MTP draft tokens per step | `2` | `2` |
+| Variable | Description | Qwen3.6 (production) | Qwen3.6 Q5_K_M | Gemma4 (alternative) |
+|---|---|---|---|---|
+| `MODEL` / `MODEL_FLAG` | Model selector | `MODEL=unsloth/...:UD-Q4_K_M` (HF) | `MODEL_FLAG=-m` + `MODEL=/models/qwen-q5-k-m.gguf` (local) | `MODEL_FLAG=-m` + `MODEL=/models/gemma4-26b-q4-k-m.gguf` (local) |
+| `DRAFT_MODEL` / `DRAFT_FLAG` | Draft model | (embedded MTP head) | (embedded MTP head) | `DRAFT_FLAG=-md` + `DRAFT_MODEL=/models/gemma4-26b-q8-mtp.gguf` |
+| `CTX` | Context length | `163840` | `163840` | `131072` |
+| `N_PREDICT` | Token cap (`-1` = unlimited) | `-1` | `-1` | `-1` |
+| `NGLAYERS` | Layers offloaded to GPU | `999` | `999` | `999` |
+| `GPU_LAYERS_DRAFT` | Draft model GPU offload | (embedded) | (embedded) | `99` (full draft on GPU) |
+| `CPUMOE` | MoE expert placement | (dense model, N/A) | (dense model, N/A) | `exps=CPU` |
+| `FLASHATTN` | Flash Attention | `on` | `on` | `on` |
+| `BATCH` / `UBATCH` | Batch settings | `3072` / `1536` | `3072` / `1536` | `512` / `512` |
+| `THREADS` / `THREADS_BATCH` | CPU thread settings | `6` / `6` | `6` / `6` | `6` / `6` |
+| `CTX_CHECKPOINTS` | KV context checkpoint slots per prompt | `4` | `4` | `4` |
+| `SPEC_TYPE` | Speculative decoding mode | `draft-mtp` | `draft-mtp` | `draft-mtp` |
+| `SPEC_DRAFT_N_MAX` | MTP draft tokens per step | `2` | `2` | `2` |
 
 ---
 
@@ -360,12 +375,13 @@ ssh root@192.168.200.38 'curl -s http://localhost:8089/health'
 
 # Start/stop models (llama.sh wrapper)
 ssh root@192.168.200.38 '/opt/llama/llama.sh start qwen'
+ssh root@192.168.200.38 '/opt/llama/llama.sh start qwen-q5'
 ssh root@192.168.200.38 '/opt/llama/llama.sh start gemma4'
 ssh root@192.168.200.38 '/opt/llama/llama.sh stop'
 ssh root@192.168.200.38 '/opt/llama/llama.sh status'
 
 # Restart after config edit (sync.sh push first, then restart)
-ssh root@192.168.200.38 '/opt/llama/llama.sh restart qwen'
+ssh root@192.168.200.38 '/opt/llama/llama.sh restart qwen-q5'
 
 # Guarded benchmark (fails fast on GPU fallback)
 HOST=root@192.168.200.38 PROJECT_DIR=/opt/llama bash scripts/benchmark-guarded-remote.sh
@@ -422,6 +438,8 @@ systemctl enable --now llama-gpu-watchdog.timer
 
 ### Current profile (Qwen3.6 35B-A3B MTP Unsloth, BATCH=3072/UBATCH=1536)
 
+Two quant variants available — Q4_K_M (default, ~30.5 tok/s) and Q5_K_M (higher quality, ~28.6 tok/s, see [Q5 profile](#qwen36-q5_k_m-profile)).
+
 | Context | MTP | Throughput | VRAM |
 |---|---:|---:|---:|
 | 16K | N_MAX=3 | ~20.1 tok/s | ~4043 MiB |
@@ -438,6 +456,17 @@ Throughput degrades to ~14–15 tok/s during sustained generation of 4K+ tokens 
 † 192K deprecated — reduced due to VRAM pressure.
 ‡ GPU upgraded from GTX 1060 6GB (Pascal) to RTX A2000 6GB (Ampere, Tensor Cores). Prefill speed improved from ~130 to ~505 tok/s (~3.9×). Throughput improved from ~24.1 to ~30.5 tok/s.
 § BATCH=3072/UBATCH=1536 optimized 2026-06-25: prefill +88% (269→505 t/s), total time −35% (294→192s) for ~60K prompts. See [Batch optimization](#batch-optimization).
+
+### Qwen3.6 Q5_K_M profile
+
+| Config | MTP | Context | Throughput | Prefill | VRAM (idle) | VRAM (inference) | Notes |
+|---|---|---|---:|---:|---:|---:|---:|---|
+| `qwen3.6-35ba3b-mtp-unsloth-q5.env` | `draft-mtp` N_MAX=2 | 160K | **~28.6 tok/s** | 463 t/s | ~4473 MiB | ~5471 MiB | −9% vs Q4, +918 MiB VRAM idle |
+
+Q5_K_M provides marginally higher quality than Q4_K_M at the cost of ~10% lower throughput
+and ~918 MiB more VRAM usage. Best suited when quality is prioritised over speed and
+headroom is adequate (86% → 89% VRAM usage during inference). The model file is 26 GB
+(vs 22.7 GB for Q4_K_M).
 
 ### Gemma 4 26B profile
 
