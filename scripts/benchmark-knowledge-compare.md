@@ -10,11 +10,11 @@
 | 4 | **Qwen3.6 35B A3B MTP Q5_K_M q8_0/q8_0** (unlimited, 143K) | 29.7 | 91.0% | 26,193 | 15.3 min | **A** | A | A | A | A | A | A | A | A | A | A |
 | 5 | **Qwen3.6 35B A3B MTP Q4_K_M q8_0/q8_0** (unlimited, 150K) | **33.1** | **91.3%** | 22,181 | **13.6 min** | **A** | A | A | A | A | A | A | A | A | A | A |
 
-<!-- Add rows from #3 upwards. Columns: Speed (tok/s), Draft% (draft accept rate), Total tok, Total time, Grade (overall), Data/.../Algo (per-task grades A-F) -->
+<!-- Add rows from #5 upwards. Columns: Speed (tok/s), Draft% (draft accept rate), Total tok, Total time, Grade (overall), Data/.../Algo (per-task grades A-F) -->
 
 ### Model Comparison Highlights
 
-| Aspect | Gemma4 26B | Qwen Q4 (q4_0) | Qwen Q5 (q4_0) | 🆕 Qwen Q5 q8_0 | 🆕🆕 Qwen Q4 q8_0 |
+| Aspect | Gemma4 26B | Qwen Q4 (q4_0) | Qwen Q5 (q4_0) | Qwen Q5 q8_0 | Qwen Q4 q8_0 |
 |--------|------------|----------------|-----------------|-----------------|--------------------|
 | **Speed** | 27.3 tok/s | 29.1 tok/s | 27.5 tok/s | 29.7 tok/s (+2%) | **33.1 tok/s** (+14%) |
 | **Draft accept** | 89.6% | 83.1% | 82.0% | 91.0% | **91.3%** |
@@ -90,9 +90,9 @@
 | 10 | Algorithm Design | 26.2 | 3791 | 146s | **A** |
 
 **Key findings:**
-- Fastest model in the benchmark: **29.1 tok/s**.
+- Previously fastest Q4 config: **29.1 tok/s** (now superseded by Q4 q8_0 at 33.1 tok/s).
 - Total time: **18 minutes** for 10 tasks.
-- Very verbose: **30,973 tokens** vs Gemma4 14,548 — 2× more content for the same prompts.
+- Very verbose: **30,973 tokens** vs Gemma4 14,574 — 2× more content for the same prompts.
 - Lower draft acceptance (83.5% vs 89.3%) — MTP less effective than Gemma4.
 - Python Programming (5933 tok) and Creative Writing (4211 tok) — the most elaborate responses.
 - Top quality (A) across all tasks, same as Gemma4.
@@ -177,7 +177,7 @@
 - Batch benchmark (60K prompt): prefill **463 tok/s**, gen **25.0 tok/s** (with full context), total **206s**, VRAM peak **5795 MiB**.
 - All 10 tasks completed with A grade.
 
-**Takeaway:** Q5_K_M with q8_0/q8_0 KV cache is the **new performance leader** — best speed (29.7 tok/s), highest draft acceptance (91%), and best total time (15.3 min) across all tested configurations. The trade-off is higher VRAM usage (93-94%) and slightly reduced context (143K vs 160K). Recommended for production deployment where quality and speed are both critical.
+**Takeaway:** Q5_K_M with q8_0/q8_0 KV cache is the **new leader among Q5 configs** — best speed (29.7 tok/s), highest draft acceptance (91%), and best total time (15.3 min). The trade-off is higher VRAM usage (93-94%) and slightly reduced context (143K vs 160K). Recommended for production deployment where Q5 quality is needed.
 
 ---
 
