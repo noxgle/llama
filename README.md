@@ -23,6 +23,9 @@ This repository operates on:
 
 ### Hardware and Topology
 
+This repository is configured for **NVIDIA GPUs with 6 GB VRAM** — currently **RTX A2000** on Proxmox LXC.
+All configs, benchmarks, and optimisations assume this GPU class.
+
 - **Runtime:** Debian 13 LXC on Proxmox
 - **GPU:** NVIDIA RTX A2000 6GB
 - **RAM:** 30 GB
@@ -34,7 +37,7 @@ This repository operates on:
 Two quant variants of Qwen3.6 are available:
 
 - **Q4_K_M (default)** — `configs/qwen3.6-35ba3b-mtp-unsloth.env` — ~30.5 tok/s, 22.7 GB model
-- **Q5_K_M (higher quality)** — `configs/qwen3.6-35ba3b-mtp-unsloth-q5.env` — ~28.6 tok/s, 26 GB model
+- **Q5_K_M (higher quality)** — `configs/qwen3.6-35ba3b-mtp-unsloth-q5.env` — ~27.2 tok/s (short), 22.4 tok/s (60K sustained), 26 GB model
 
 #### Q4_K_M (production default)
 
@@ -368,7 +371,7 @@ Two Qwen3.6 variants are pre-configured:
 | Preset name | Source | Quality | Throughput | VRAM (inference) |
 |---|---|---|---|---:|
 | `qwen-q4` | `-hf unsloth/...:UD-Q4_K_M` | Good | ~29.8 tok/s | ~5221 MiB |
-| `qwen-q5` | `-m /models/qwen-q5-k-m.gguf` | Higher | ~28.6 tok/s | ~5471 MiB |
+| `qwen-q5` | `-m /models/qwen-q5-k-m.gguf` | Higher | ~27.2 tok/s | ~5471 MiB |
 
 The Q5 model file (26 GB) must be downloaded first — see `install-llama.sh qwen-q5`.
 
@@ -537,12 +540,14 @@ Throughput degrades to ~14–15 tok/s during sustained generation of 4K+ tokens 
 
 | Config | MTP | Context | Throughput | Prefill | VRAM (idle) | VRAM (inference) | Notes |
 |---|---|---|---:|---:|---:|---:|---:|---|
-| `qwen3.6-35ba3b-mtp-unsloth-q5.env` | `draft-mtp` N_MAX=2 | 160K | **~28.6 tok/s** | 463 t/s | ~4473 MiB | ~5471 MiB | −9% vs Q4, +918 MiB VRAM idle |
+| `qwen3.6-35ba3b-mtp-unsloth-q5.env` | `draft-mtp` N_MAX=2 | 160K | **~27.2 tok/s** (short 500 tk) · 22.4 tok/s (60K prompt sustained) | 457 t/s (60K prompt) | ~5399 MiB | ~5471 MiB | −9% vs Q4, +908 MiB VRAM idle |
 
 Q5_K_M provides marginally higher quality than Q4_K_M at the cost of ~10% lower throughput
-and ~918 MiB more VRAM usage. Best suited when quality is prioritised over speed and
-headroom is adequate (86% → 89% VRAM usage during inference). The model file is 26 GB
-(vs 22.7 GB for Q4_K_M).
+and ~908 MiB more VRAM usage. Best suited when quality is prioritised over speed and
+headroom is adequate (88% → 89% VRAM usage during inference). MTP draft acceptance rate:
+~80% (measured: 308/382 tokens). The model file is 26 GB (vs 22.7 GB for Q4_K_M).
+
+Benchmarked on standalone server (192.168.200.19, RTX A2000 6 GB, b9770, BATCH=3072/UBATCH=1536, context=160K).
 
 ### Gemma 4 26B profile
 
