@@ -108,12 +108,13 @@ def run_curl(payload: str) -> str:
             remote_tmp = f"/tmp/benchmark-payload-{os.getpid()}.json"
             subprocess.run(["sshpass", "-p", "123456", "scp", tmp.name, 
                            f"{HOST}:{remote_tmp}"], capture_output=True, timeout=30)
+            # Use single string to avoid SSH argument splitting on header value
             cmd = [
                 "ssh", HOST,
-                "curl", "-sS", "--max-time", str(CURL_TIMEOUT),
-                f"http://localhost:{PORT}/v1/chat/completions",
-                "-H", "Content-Type: application/json",
-                "-d", f"@{remote_tmp}",
+                f"curl -sS --max-time {CURL_TIMEOUT} "
+                f"'http://localhost:{PORT}/v1/chat/completions' "
+                f"-H 'Content-Type: application/json' "
+                f"-d '@{remote_tmp}'",
             ]
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=CURL_TIMEOUT + 10)
             # Clean up remote file

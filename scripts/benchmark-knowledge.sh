@@ -185,14 +185,24 @@ TASKS = [
 # ---- helpers ----
 def run_curl(payload: str) -> str:
     """Send request to the model API, return raw JSON response."""
+    remote_payload = None
     if HOST:
         # Remote: SSH to host and curl localhost inside
+        # Write payload to a temp file via stdin to avoid all shell quoting issues
+        remote_payload = f"/tmp/curl-payload-{os.getpid()}.json"
+        try:
+            subprocess.run(
+                ["ssh", HOST, f"cat > {remote_payload}"],
+                input=payload, text=True, timeout=10,
+            )
+        except Exception as e:
+            return json.dumps({"error": f"failed to write remote payload: {e}"})
         cmd = [
             "ssh", HOST,
             "curl", "-sS", "--max-time", str(TIMEOUT),
             f"http://localhost:{PORT}/v1/chat/completions",
-            "-H", "Content-Type: application/json",
-            "-d", payload,
+            "-H", '"Content-Type: application/json"',
+            "-d", f'"@{remote_payload}"',
         ]
     else:
         # Local: curl directly
@@ -212,6 +222,12 @@ def run_curl(payload: str) -> str:
         return json.dumps({"error": "timeout"})
     except Exception as e:
         return json.dumps({"error": str(e)})
+    finally:
+        if remote_payload:
+            subprocess.run(
+                ["ssh", HOST, f"rm -f {remote_payload}"],
+                capture_output=True, timeout=5,
+            )
 
 
 def extract_content(data: dict) -> str:
