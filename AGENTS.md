@@ -2,9 +2,9 @@
 
 ## Scope
 - **Dev server:** `root@192.168.200.38:/opt/llama` — RTX A2000 6 GB, compilation + config/model testing
-- **Production (prod-qwen3.6-35ba3b-mtp):** `root@192.168.200.20:/opt/llama` — RTX A2000 6 GB, Debian 13 trixie, Qwen3.6 35B A3B MTP (~30 tok/s)
-- **Production (prod-gemma4-26b-q4-k-m-mtp):** `root@192.168.200.21:/opt/llama` — RTX A2000 6 GB, Debian 13 trixie, Gemma4 26B Q4_K_M MTP (~27 tok/s)
-- **Production (prod-qwen3.6-35ba3b-mtp-q5):** `root@192.168.200.19:/opt/llama` — RTX A2000 6 GB, Debian 13 trixie, Qwen3.6 35B A3B MTP Q5_K_M (~28 tok/s), kodowanie
+- **Production (prod-qwen3.6-35ba3b-mtp):** `root@192.168.200.20:/opt/llama` — RTX A2000 6 GB, Debian 13 trixie, Qwen3.6 35B A3B MTP, RAM 20/30 GiB, VRAM 5.2/6.0 GiB (~32 tok/s)
+- **Production (prod-gemma4-26b-q4-k-m-mtp):** `root@192.168.200.21:/opt/llama` — RTX A2000 6 GB, Debian 13 trixie, Gemma4 26B Q4_K_M MTP, RAM 15/30 GiB, VRAM 5.4/6.0 GiB (~27 tok/s)
+- **Production (prod-qwen3.6-35ba3b-mtp-q5):** `root@192.168.200.19:/opt/llama` — RTX A2000 6 GB, Debian 13 trixie, Qwen3.6 35B A3B MTP Q5_K_M, RAM 25/30 GiB, VRAM 5.3/6.0 GiB (~28 tok/s), kodowanie
 - Operational SOTs: `llama.sh`, `configs/*.env`, `deploy/install-llama.sh`, `.github/workflows/build.yml`.
 
 ## Deployment gotchas (critical)

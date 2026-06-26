@@ -34,10 +34,20 @@ All configs, benchmarks, and optimisations assume this GPU class.
 
 ### Current Production Profile
 
+Three production configurations are deployed, each on an RTX A2000 6 GB with 30 GB system RAM:
+
+| Config | Model | File | Gen speed | RAM | VRAM (inference) |
+|--------|-------|:----:|:---------:|:---:|:----------------:|
+| `qwen3.6-35ba3b-mtp-unsloth.env` | Qwen3.6 Q4\_K\_M | 22.7 GB | **~32 tok/s** | 20/30 GiB | 5.2/6.0 GiB |
+| `qwen3.6-35ba3b-mtp-unsloth-q5.env` | Qwen3.6 Q5\_K\_M | 26 GB | **~28 tok/s** | 25/30 GiB | 5.3/6.0 GiB |
+| `gemma4-26b-q4-k-m-mtp.env` | Gemma 4 Q4\_K\_M + MTP | ~17 GB | **~27 tok/s** | 15/30 GiB | 5.4/6.0 GiB |
+
+> **Thread count tuning:** All LXC containers are assigned exactly **4 CPUs** (`cat /sys/fs/cgroup/cpuset.cpus.effective`). Every config **must** match this count — `THREADS` and `THREADS_BATCH` set to 4. The previous default of 6 caused ~14–23% throughput loss from context switching overhead. Always verify the actual CPU count on a new target (LXC may not have all host cores).
+
 Two quant variants of Qwen3.6 are available:
 
-- **Q4_K_M (default)** — `configs/qwen3.6-35ba3b-mtp-unsloth.env` — ~30.5 tok/s, 22.7 GB model
-- **Q5_K_M (higher quality)** — `configs/qwen3.6-35ba3b-mtp-unsloth-q5.env` — ~27.2 tok/s (short), 22.4 tok/s (60K sustained), 26 GB model
+- **Q4_K_M (default)** — `configs/qwen3.6-35ba3b-mtp-unsloth.env` — ~32 tok/s, 22.7 GB model
+- **Q5_K_M (higher quality)** — `configs/qwen3.6-35ba3b-mtp-unsloth-q5.env` — ~28 tok/s (short), ~24 tok/s (60K sustained), 26 GB model
 
 #### Q4_K_M (production default)
 
@@ -47,14 +57,14 @@ Key values:
 - `CTX=163840` (160K)
 - `NGLAYERS=999`
 - `SPEC_TYPE=draft-mtp`
-- `SPEC_DRAFT_N_MAX=2`
+- `SPEC_DRAFT_N_MAX=1`
 - `FLASHATTN=on`
 - `BATCH=3072`, `UBATCH=1536` (baseline was 512/512; optimized 2026-06-25, see [Batch optimization](#batch-optimization))
 
 Typical steady-state (after full startup stabilization):
 
-- Throughput: **~30.5 tok/s** (short prompts), ~25 tok/s (60K+ prompt prefill at 505 t/s), ~23–24 tok/s during sustained generation of 4K+ tokens
-- VRAM: ~4.4–4.8 GiB / 6.0 GiB at idle, ~5.3 GiB during large-prompt inference (at 160K context, BATCH=3072)
+- Throughput: **~32 tok/s** (short prompts), ~25 tok/s (60K+ prompt prefill at 505 t/s), ~23–24 tok/s during sustained generation of 4K+ tokens
+- VRAM: ~5.2 GiB / 6.0 GiB during inference (at 160K context, BATCH=3072), RAM: ~20/30 GiB
 
 ### Gemma 4 26B Alternative
 
@@ -75,9 +85,9 @@ Key values:
 
 Typical steady-state:
 
-- Throughput: **~27.4 tok/s** (RTX 4060 Ti) / **~25.5 tok/s** (RTX A2000) — short prompts
+- Throughput: **~27 tok/s** (RTX A2000, short prompts)
 - VRAM: **~5.4 GiB / 6.0 GiB** (at 128K context, BATCH=512), RAM: ~15/30 GiB
-- Draft acceptance rate: **~85%**
+- Draft acceptance rate: **~82%**
 
 ### Router mode (experimental)
 
