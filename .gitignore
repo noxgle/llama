@@ -18,3 +18,13 @@ build/
 # Environment
 .env
 .env.local
+
+# Python
+__pycache__/
+
+# MCP browser artifacts
+.playwright-mcp/
+
+# Knowledge benchmark output data (auto-generated)
+benchmark-kb-*
+benchmark-knowledge-responses.json
