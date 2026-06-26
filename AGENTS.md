@@ -51,9 +51,9 @@ The `llama.sh` script avoids this issue entirely — it reads configs directly v
 - **Config file:** `configs/qwen3.6-35ba3b-mtp-unsloth.env`
 - **Model:** `unsloth/Qwen3.6-35B-A3B-MTP-GGUF:UD-Q4_K_M` (HF Unsloth dynamic GGUF)
 - **Context:** 163840 (160K)
-- **MTP:** `SPEC_TYPE=draft-mtp`, `SPEC_DRAFT_N_MAX=2` (~79% accept rate, ~30.1 tok/s)
+- **MTP:** `SPEC_TYPE=draft-mtp`, `SPEC_DRAFT_N_MAX=1` (~83% accept rate, ~27.5 tok/s)
 - **BATCH=3072**, **UBATCH=1536** (baseline was 512/512; optimized 2026-06-25)
-- **VRAM:** ~4473/6144 MiB (prefill), ~5311/6144 MiB (inference), RAM: ~20/30 GiB
+- **VRAM:** ~4473/6144 MiB (prefill), ~5169/6144 MiB (inference, n=1), RAM: ~20/30 GiB
 - **LLama.cpp commit:** `75ad0b2` (tag `b9770`, deployed 2026-06-23, built locally & scp'd)
 - **Benchmark (A/B vs 8086439):** +3% throughput (29.2→30.1 tok/s)
 - Use this as the default reference. All Gemma 4 configs are legacy/archive.
@@ -74,8 +74,24 @@ Large-prompt benchmark (~60k tokens Qwen tokenized) tested BATCH/UBATCH combos o
 - **Chosen config (3072/1536):** Best balance of speed (+88% prefill, −35% total time) vs VRAM headroom (~86%).
 - **Danger zone:** 4096/2048 works (93% VRAM) but 5120/2560 OOMs on MTP draft context allocation.
 
+### MTP draft parameter optimization (2026-06-26, dev .38)
+
+Tested on Qwen3.6 35B-A3B B3072/UB1536, 500-token generation probe:
+| Config | Gen speed | vs baseline | VRAM | Acceptance | Notes |
+|--------|:-:|:-:|:-:|:-:|------|
+| n_max=1 | **27.49 tok/s** | **+2.0%** ⭐ | **5169 MiB** | 90/108=83% | **Optimal** — fastest, lowest VRAM |
+| n_max=2 | 26.95 tok/s | baseline | 5235 MiB | ~79% | Current production default |
+| n_max=3 | 25.33 tok/s | −6.0% | 5329 MiB | — | Higher overhead negates MTP benefit |
+| n_max=4 | 22.51 tok/s | −16.5% | 5393 MiB | — | Worst — too many wasted draft tokens |
+| MTP off | 24.31 tok/s | −9.8% | 4161 MiB | N/A | Baseline without speculation |
+
+**Key finding:** `SPEC_DRAFT_N_MAX=1` is optimal for Qwen3.6 35B-A3B on RTX A2000 (6 GB). Each speculative token triggers expert computation on CPU (MoE), so drafting more than 1 token per step creates more overhead than the acceptance rate can compensate for. With n=2, the higher VRAM usage (85% vs 84%) also causes intermittent MTP crashes on model load.
+
+Also, `--no-mmap` and `--mlock` are already enabled in the default config and confirmed working.
+
 ### Scripts
 - `scripts/benchmark-batch.sh` — generates ~60k-token prompt, measures prefill/gen speed, VRAM. Use `N_RUNS=1` env var. Requires clean restart between configs (KV cache contamination).
+- `scripts/benchmark-mtp.sh` — test script for MTP draft parameter sweep (created 2026-06-26).
 
 ## Gemma 4 test results (2026-06-23)
 
