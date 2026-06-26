@@ -117,13 +117,9 @@ Large-prompt benchmark (~60k tokens Qwen tokenized) tested BATCH/UBATCH combos o
 - Source: `ggml-org/llama.cpp.git`, pinned by `LLAMA_REF` compose build arg (default `master`).
 - `-DGGML_CUDA_NCCL=OFF` — single-GPU host, avoid `libnccl.so.2` runtime issues.
 - Do not modify `Dockerfile` unless explicitly asked.
-- **Deployment method:** build locally, compress to tar.gz, scp, pipe directly into `docker load`:
-  ```bash
-  docker save llama-llama-server:latest | gzip > /tmp/llama-<tag>.tar.gz
-  scp /tmp/llama-<tag>.tar.gz root@192.168.200.38:/tmp/
-  ssh root@192.168.200.38 'gzip -dc /tmp/llama-<tag>.tar.gz | docker load && rm /tmp/llama-<tag>.tar.gz'
-  ```
-  Avoids writing uncompressed tar on server (saves ~8 GB temp space). Server must have enough free disk for compressed file + Docker layer extraction (~12-13 GB for an 8.97 GB image).
+- **Deployment method:** push via CI/CD to GHCR (`ghcr.io/noxgle/llama-server:latest`).
+  The image is **public** — no authentication required for pull.
+  On the target server: `docker pull ghcr.io/noxgle/llama-server:latest`.
 - **Build benchmark (b9770 vs 8086439):**
   - **Gemma4 Q4_K_M+MTP:** 25.5 → 27.4 tok/s (+7.5%)
   - **Qwen3.6+MTP:** 29.2 → 30.1 tok/s (+3%)
@@ -168,9 +164,8 @@ is a prerequisite — the script prints the required `lxc.*` entries if missing.
    plus system overhead. Minimum disk: **70 GB** (80 GB recommended).
 3. **Systemd Type=oneshot** — `llama.sh start` returns immediately (detached Docker).
    The systemd service uses `Type=oneshot` with `RemainAfterExit=yes`.
-4. **GHCR auth** — The image is private by default. CI/CD pushes via `GITHUB_TOKEN`
-   with `packages: write` permission. For external pulls, either make the package
-   public or authenticate with a `read:packages` token.
+4. **GHCR auth** — ~~The image is private by default~~ The image is public. CI/CD pushes via `GITHUB_TOKEN`
+   with `packages: write` permission. No authentication required for pull.
 5. **Model download** — The server downloads model weights on first start via `-hf`.
    The install script initiates the download and runs for 60s before returning.
    The systemd service's `--restart unless-stopped` and systemd's restart policy

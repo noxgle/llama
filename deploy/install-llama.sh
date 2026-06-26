@@ -260,18 +260,8 @@ else
   ${RED}CANNOT OBTAIN SERVER IMAGE${NC}
   docker pull of $LLAMA_IMAGE failed and no local image found.
 
-  To resolve:
-    1. Push the image from a build machine:
-       docker tag llama-llama-server:latest $LLAMA_IMAGE
-       docker push $LLAMA_IMAGE
-
-    2. Or transfer the image directly:
-       docker save llama-llama-server:latest | gzip > /tmp/llama.tar.gz
-       scp /tmp/llama.tar.gz root@<this-server>:/tmp/
-       gzip -dc /tmp/llama.tar.gz | docker load
-       docker tag llama-llama-server:latest $LLAMA_IMAGE
-
-  Then re-run this script.
+  The image is public on ghcr.io — verify network connectivity and that
+  the registry is reachable, then re-run this script.
 EOFFALLBACK
     exit 1
   fi
