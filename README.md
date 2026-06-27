@@ -348,7 +348,7 @@ cp deploy/systemd/llama@.service /etc/systemd/system/
 systemctl enable --now llama@qwen   # auto-start on boot
 ```
 
-> **Important:** `nvidia-persistenced.service` is a **separate system service** (not part of `llama.sh`).
+> **Important:** `nvidia-persistenced.service` is a **separate system service** (not managed by `llama.sh` or `docker compose`).
 > It must be enabled once to prevent degraded GPU throughput after reboot:
 > ```bash
 > cp deploy/systemd/nvidia-persistenced.service /etc/systemd/system/
