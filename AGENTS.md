@@ -9,6 +9,21 @@
 
 ## Deployment gotchas (critical)
 
+### `--gpus all` causes 1.5 tok/s after reboot (Docker 26.1.5 only)
+**DO NOT use `--gpus all`** (the flag used by `llama.sh`'s `docker run`).
+It causes CUDA JIT compilation to run at CPU-serialized speed on the first
+inference after boot (~1.5 tok/s instead of ~32 tok/s).
+
+**Always use `deploy.resources.reservations.devices`** (the method used by
+`docker-compose.yml` + `.env`). This properly initializes the GPU runtime
+so the first inference after boot runs at full speed (verified: 31.8 tok/s).
+
+The difference is specific to Docker 26.1.5 — Docker 29.6.0 may not have
+this issue, but docker-compose is the recommended method for consistency.
+
+**No systemd service, no nvidia-persistenced, no warmup requests needed.**
+Just `docker compose up -d` with `restart: unless-stopped`.
+
 ### ~~Server path mismatch (known bug)~~ (FIXED)
 `sync.sh` previously targeted `ag@...:~/llama` but has been corrected to `root@192.168.200.38:/opt/llama`. All `ssh`/`scp` commands now use the correct target. The script commands (`deploy`, `rebuild`, `restart`) work as expected.
 
@@ -20,13 +35,10 @@
   # On server as root:
   cp /opt/llama/configs/<name>.env /opt/llama/.env
   docker compose down && docker compose up -d
-  # OR (new approach):
-  /opt/llama/llama.sh start qwen   # reads configs directly, no .env needed
   ```
 
 ### .env changes require down+up, not restart
 `docker compose restart` does NOT re-read `.env`. Always do `docker compose down && docker compose up -d`.
-The `llama.sh` script avoids this issue entirely — it reads configs directly via `docker run`.
 
 ### HF download bug (get_hf_plan)
 - The deployed builds have a bug where `get_hf_plan` fails for certain quant names (e.g., `:UD-Q8_K_XL`, `:Q8_0`) even though the file exists in the cache. Workaround: use `MODEL_FLAG=-m` with a local symlink path and `DRAFT_FLAG=-md` for draft models.
@@ -177,12 +189,13 @@ bash <(curl -fsSL https://raw.githubusercontent.com/noxgle/llama/master/deploy/i
 5. Creates HF cache Docker volume + `models/` directory
 6. Pulls server image from GHCR
 7. Checks disk space (warns if < 25 GB for model)
-8. Enables systemd service for autostart (`llama@<model>`)
+8. Creates `.env` from the chosen config and starts via `docker compose up -d`
 9. Pre-caches model weights from HuggingFace
 10. Starts the server on port 8089
 
-After reboot the model auto-starts via systemd.  GPU passthrough for Proxmox LXC
-is a prerequisite — the script prints the required `lxc.*` entries if missing.
+After reboot the model auto-starts via Docker's `restart: unless-stopped` policy.
+GPU passthrough for Proxmox LXC is a prerequisite — the script prints the
+required `lxc.*` entries if missing.
 
 ### Provisioning gotchas
 
@@ -190,42 +203,29 @@ is a prerequisite — the script prints the required `lxc.*` entries if missing.
    `trixie` → `bookworm` for both Docker and NVIDIA CTK repos.
 2. **Disk space** — Qwen3.6 model needs ~22 GB for weights, Docker image is ~18 GB,
    plus system overhead. Minimum disk: **70 GB** (80 GB recommended).
-3. **Systemd Type=oneshot** — `llama.sh start` returns immediately (detached Docker).
-   The systemd service uses `Type=oneshot` with `RemainAfterExit=yes`.
-4. **GHCR auth** — ~~The image is private by default~~ The image is public. CI/CD pushes via `GITHUB_TOKEN`
+3. **Auto-start via Docker** — The server uses `docker-compose.yml` with `restart: unless-stopped`.
+   After reboot, Docker automatically starts the container. No systemd service for the container is needed.
+4. **GHCR auth** — The image is public. CI/CD pushes via `GITHUB_TOKEN`
    with `packages: write` permission. No authentication required for pull.
 5. **Model download** — The server downloads model weights on first start via `-hf`.
    The install script initiates the download and runs for 60s before returning.
-   The systemd service's `--restart unless-stopped` and systemd's restart policy
+   The systemd service's `--restart unless-stopped` and Docker's restart policy
    ensure the download resumes until complete.
 
 ---
 
 ## Production scripts
 
-### `llama.sh` (docker run wrapper, replaces compose)
-- **Location:** `/opt/llama/llama.sh` (synced via `sync.sh push`)
-- **Usage:**
-  ```bash
-  ./llama.sh start qwen       # Qwen3.6 on port 8089
-  ./llama.sh start gemma4     # Gemma4 on port 8089
-  ./llama.sh stop             # Stop both
-  ./llama.sh restart qwen     # Stop + start
-  ./llama.sh status           # List containers
-  ./llama.sh logs qwen        # Tail logs
-  ./llama.sh pull             # Pull latest image
-  ```
-- Reads `configs/<model>.env` and translates to `docker run` flags.
-- Image: `ghcr.io/noxgle/llama-server:latest` (override with `LLAMA_IMAGE`).
-- Stops ALL containers named `llama*` before start (safe switching).
+### `docker-compose.yml` (recommended startup method)
+- Uses `restart: unless-stopped` for automatic recovery after reboot.
+- GPU access via `deploy.resources.reservations.devices` (not `--gpus all`) —
+  critical for full GPU throughput on first inference after boot.
+- Reads config from `.env` file (copy from `configs/<name>.env`).
 
-### Systemd (optional)
-```bash
-cp deploy/systemd/llama@.service /etc/systemd/system/
-systemctl enable --now llama@qwen
-```
-Note: Uses `Type=oneshot` + `RemainAfterExit=yes` because `llama.sh start`
-returns immediately (the container runs detached).
+### `llama.sh` (docker run wrapper, NOT recommended for production)
+- **Do NOT use** on Docker 26 — `--gpus all` flag causes ~1.5 tok/s on first
+  inference after boot. Use `docker-compose.yml` instead.
+- Still useful for testing/config switching locally.
 
 ### CI/CD
 - `.github/workflows/build.yml` — build on push to `master` or tag `b*`.
@@ -251,7 +251,7 @@ curl -s http://192.168.200.38:8089/health
 ## GPU watchdog
 - Deployed via systemd timer: `deploy/systemd/llama-gpu-watchdog.{service,timer}`.
 - Detects CPU fallback (0 MiB VRAM, `ggml_cuda_init: failed` in logs).
-- Self-heal: restart container → if still CPU → restart Docker + nvidia-persistenced.
+- Self-heal: restart container → if still CPU → restart Docker.
 - Max 2 attempts, 30 min cooldown.
 - Deploy:
   ```bash

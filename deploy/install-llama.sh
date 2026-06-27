@@ -21,12 +21,12 @@
 #   5. Creates HF cache volume + models/ directory
 #   6. Pulls llama-server image from GitHub Container Registry
 #   7. Checks available disk space (warns if < 25 GB)
-#   8. Enables systemd service (llama@<model>) for autostart on boot
+#   8. Creates .env from the chosen config
 #   9. Pre-downloads model weights (best-effort, background)
 #  10. Starts the server on port 8089
 #
-# After reboot:  model auto-starts via systemd
-# To switch:     /opt/llama/llama.sh {start|stop|restart}
+# After reboot:  model auto-starts via Docker's restart: unless-stopped
+# To switch:     cp configs/<name>.env .env && docker compose up -d
 #
 # Environment variables:
 #   LLAMA_REPO   Git repo URL (default: https://github.com/noxgle/llama.git)
@@ -284,45 +284,30 @@ if [ "$AVAIL_GB" -lt "$MODEL_MIN_GB" ]; then
 fi
 
 # ==================================================================
-# 8. Configure systemd autostart
+# 8. Create .env from config
 # ==================================================================
-heading "Step 8/10 — systemd autostart"
+heading "Step 8/10 — docker-compose setup"
 
-if [ -f "$INSTALL_DIR/deploy/systemd/llama@.service" ]; then
-  cp "$INSTALL_DIR/deploy/systemd/llama@.service" /etc/systemd/system/
-  systemctl daemon-reload
-  systemctl enable "llama@$MODEL"
-  info "systemd unit for llama@$MODEL enabled"
+case "$MODEL" in
+  qwen)    CONFIG_NAME="qwen3.6-35ba3b-mtp-unsloth.env" ;;
+  gemma4)  CONFIG_NAME="gemma4-26b-q4-k-m-mtp.env" ;;
+  qwen-q5) CONFIG_NAME="qwen3.6-35ba3b-mtp-unsloth-q5.env" ;;
+  *)       die "Unknown model: $MODEL (bug in script)" ;;
+esac
+CONFIG_FILE="$INSTALL_DIR/configs/$CONFIG_NAME"
 
-  # nvidia-persistenced.service — keeps GPU driver state initialized
-  # across reboots. This is the PRIMARY fix for the "Post-Reboot
-  # Throughput Incident" (~1.5 tok/s on first load after boot).
-  # Without it, the first CUDA context after boot runs in degraded mode.
-  if [ -f "$INSTALL_DIR/deploy/systemd/nvidia-persistenced.service" ]; then
-    cp "$INSTALL_DIR/deploy/systemd/nvidia-persistenced.service" /etc/systemd/system/
-    systemctl daemon-reload
-    systemctl enable nvidia-persistenced.service
-    info "nvidia-persistenced.service enabled — GPU state persists across reboots"
-  else
-    warn "nvidia-persistenced.service not found — GPU may be degraded after reboot"
-  fi
-
-  # gpu-ready.service — safety net: verifies GPU is accessible before
-  # the container starts. Runs after nvidia-persistenced.
-  if [ -f "$INSTALL_DIR/deploy/systemd/gpu-ready.service" ] && \
-     [ -f "$INSTALL_DIR/scripts/gpu-ready.sh" ]; then
-    cp "$INSTALL_DIR/deploy/systemd/gpu-ready.service" /etc/systemd/system/
-    mkdir -p "$INSTALL_DIR/scripts"
-    chmod +x "$INSTALL_DIR/scripts/gpu-ready.sh"
-    systemctl daemon-reload
-    systemctl enable gpu-ready.service
-    info "gpu-ready.service enabled — GPU readiness verified before model load"
-  else
-    warn "gpu-ready files not found — skipping GPU readiness check"
-  fi
-else
-  warn "deploy/systemd/llama@.service not found — skipping systemd setup"
+if [ ! -f "$CONFIG_FILE" ]; then
+  die "Config not found: $CONFIG_FILE — expected at $CONFIG_FILE"
 fi
+
+cp "$CONFIG_FILE" "$INSTALL_DIR/.env"
+
+# Append variables needed by docker-compose.yml that may not be in the config
+grep -q "^DRAFT_MODEL=" "$INSTALL_DIR/.env" 2>/dev/null || echo "DRAFT_MODEL=" >> "$INSTALL_DIR/.env"
+grep -q "^DRAFT_FLAG="  "$INSTALL_DIR/.env" 2>/dev/null || echo "DRAFT_FLAG=--hf-repo-draft" >> "$INSTALL_DIR/.env"
+grep -q "^MODEL_FLAG="  "$INSTALL_DIR/.env" 2>/dev/null || echo "MODEL_FLAG=-hf" >> "$INSTALL_DIR/.env"
+
+info ".env created from $MODEL config ($CONFIG_NAME)"
 
 # ==================================================================
 # 9. Pre-download model weights (background, best-effort)
@@ -384,14 +369,13 @@ case "$MODEL" in
 esac
 
 # ==================================================================
-# 9. Start the model
+# 10. Start the model
 # ==================================================================
-heading "Starting $MODEL server"
+heading "Step 10/10 — Starting $MODEL server"
 
 cd "$INSTALL_DIR"
-LLAMA_IMAGE="$LLAMA_IMAGE" bash llama.sh start "$MODEL"
+docker compose up -d 2>&1 | grep -v "WARNING\|already exists"
 
-# Wait for model to load (up to 5 min)
 info "Waiting for server to become ready (model load may take 2-5 min)..."
 for i in $(seq 1 60); do
   if curl -sf http://localhost:8089/health 2>/dev/null | grep -q '"ok"'; then
@@ -417,8 +401,9 @@ info "Image:     $LLAMA_IMAGE"
 info "Directory: $INSTALL_DIR"
 echo ""
 info "Manage:"
-info "  systemctl {start|stop|status|restart} llama@$MODEL"
-info "  $INSTALL_DIR/llama.sh {start|stop|status|logs} $MODEL"
+info "  docker compose down && docker compose up -d   (restart)"
+info "  docker compose logs -f                        (logs)"
+info "  cd $INSTALL_DIR && docker compose ...         (from install dir)"
 echo ""
 info "Health check:"
 info "  curl http://localhost:8089/health"
@@ -431,6 +416,6 @@ info "    | jq '.timings.predicted_per_second'"
 echo ""
 
 # Give a final status
-"$INSTALL_DIR/llama.sh" status
+docker ps --filter name=llama --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
 echo ""
-info "Reboot test:  systemctl reboot  →  model auto-starts on port 8089"
+info "Reboot test:  systemctl reboot  →  model auto-starts on port 8089 (Docker restart: unless-stopped)"

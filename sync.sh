@@ -85,8 +85,8 @@ cmd_pull() {
 
 cmd_deploy() {
     rsync_push
-    log_info "Restart kontenera..."
-    ssh_exec "cd $REMOTE_DIR && docker compose restart"
+    log_info "Restart kontenera (down + up -d, aby przeładować .env)..."
+    ssh_exec "cd $REMOTE_DIR && docker compose down && docker compose up -d"
     log_ok "Deploy zakończony"
 }
 
@@ -110,8 +110,8 @@ cmd_stop() {
 }
 
 cmd_restart() {
-    log_info "Restart kontenera..."
-    ssh_exec "cd $REMOTE_DIR && docker compose restart"
+    log_info "Restart kontenera (down + up -d)..."
+    ssh_exec "cd $REMOTE_DIR && docker compose down && docker compose up -d"
     log_ok "Kontener zrestartowany"
 }
 

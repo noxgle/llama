@@ -194,7 +194,8 @@ bash <(curl -fsSL https://raw.githubusercontent.com/noxgle/llama/master/deploy/i
 ```
 
 The script installs Docker + nvidia-container-toolkit, pulls the server image
-from GHCR, pre-caches model weights, and configures systemd autostart.
+from GHCR, pre-caches model weights, and configures `restart: unless-stopped`
+via docker-compose for automatic recovery after reboot.
 After reboot the model starts automatically on port **8089**.
 
 **Prerequisites:**
@@ -342,20 +343,13 @@ ssh root@192.168.200.38
 
 The script reads model config from `configs/<model>.env` and passes the same flags as the old compose `command:` section. Image source: `ghcr.io/noxgle/llama-server:latest` (or override with `LLAMA_IMAGE`).
 
-Systemd (optional):
+Systemd (optional, legacy):
 ```bash
 cp deploy/systemd/llama@.service /etc/systemd/system/
 systemctl enable --now llama@qwen   # auto-start on boot
 ```
-
-> **Important:** `nvidia-persistenced.service` is a **separate system service** (not managed by `llama.sh` or `docker compose`).
-> It must be enabled once to prevent degraded GPU throughput after reboot:
-> ```bash
-> cp deploy/systemd/nvidia-persistenced.service /etc/systemd/system/
-> systemctl daemon-reload
-> systemctl enable --now nvidia-persistenced.service
-> ```
-> The `install-llama.sh` script does this automatically. See "Post-Reboot Throughput Incident" in Troubleshooting.
+> **Note:** `docker compose up -d` is the recommended startup method.
+> Systemd is kept for compatibility with existing deployments.
 
 > **Note:** Gemma 4 uses local GGUF symlinks (`MODEL_FLAG=-m`, `DRAFT_FLAG=-md`). Ensure the model blobs exist in the HF cache first. See `AGENTS.md` → "HF download bug" for details.
 
@@ -665,67 +659,39 @@ Without this variable, the workflow falls back to `ubuntu-latest` (no GPU, slowe
 
 ## Troubleshooting
 
-### Post-Reboot Throughput Incident (Resolved)
+### Post-Reboot Throughput Degradation (Docker 26.1.5 only)
 
 #### Symptom
 
-After host/LXC reboot, the container was healthy and GPU was visible (`nvidia-smi`),
-but throughput dropped to ~1.5–2 tok/s instead of the expected 32–34 tok/s.
-A `docker restart llama-qwen` (or `systemctl restart llama@qwen`) immediately
-restored full throughput.
+After host/LXC reboot, throughput drops to ~1.5 tok/s instead of the expected
+32 tok/s. A `docker compose down && docker compose up -d` restores full speed.
 
 #### Root cause
 
-The NVIDIA GPU driver state was not initialized after boot. When the first Docker
-container loaded the model, it created CUDA contexts with the driver in a "cold"
-state. These contexts ran in degraded mode (~1.5 tok/s). A container restart
-created a second set of CUDA contexts with the driver fully warmed, restoring
-full throughput (~32 tok/s).
+The `--gpus all` flag (used by `llama.sh`'s `docker run`) does not fully
+initialize the GPU runtime on Docker 26.1.5 after boot. The first CUDA
+inference triggers JIT compilation that runs at CPU-serialized speed.
 
-Specifically, the `nvidia-persistenced.service` (NVIDIA Persistence Daemon) was
-**not enabled** on the system. Without it, the GPU device files are not held open
-after boot, and the driver unloads GPU state between reboots. The daemon opens
-the device files at boot and keeps them open, ensuring the driver state persists.
-
-Note: legacy `nvidia-smi -pm 1` (kernel-level persistence mode) is **not sufficient**
-— the user-space daemon is required for reliable state retention. See
-[NVIDIA docs](https://docs.nvidia.com/deploy/driver-persistence/persistence-daemon.html).
+**This is NOT caused by missing `nvidia-persistenced`** — even with the
+daemon active, `--gpus all` on Docker 26.1.5 produces ~1.5 tok/s on the
+first inference after boot.
 
 #### Resolution
 
-Enable `nvidia-persistenced.service` at boot:
+**Use `deploy.resources.reservations.devices`** (the method in
+`docker-compose.yml`) instead of `--gpus all`. The comparison on Docker 26.1.5
+after a fresh reboot:
 
-```bash
-# If the service file exists from NVIDIA driver package:
-systemctl enable --now nvidia-persistenced.service
+| Method | First inference after reboot |
+|---|---|
+| `--gpus all` (`llama.sh`) | **~1.5 tok/s** ❌ |
+| `deploy.resources.reservations.devices` (`docker-compose.yml`) | **31.8 tok/s** ✅ |
 
-# If missing (e.g., LXC with manual driver install), deploy from repo:
-cp /opt/llama/deploy/systemd/nvidia-persistenced.service /etc/systemd/system/
-systemctl daemon-reload
-systemctl enable --now nvidia-persistenced.service
-```
+No extra services needed — no nvidia-persistenced, no warmup requests,
+no GPU-ready polling. Just `docker compose up -d` with `restart: unless-stopped`.
 
-The `install-llama.sh` script handles this automatically for fresh installs.
-Existing installs should add the service manually as shown above.
-
-`llama@.service` depends on `nvidia-persistenced.service` via `Requires=` and
-`After=`, so the daemon starts before the model container.
-
-Additionally, `gpu-ready.service` acts as a safety net — it polls `nvidia-smi -L`
-with a 30-second timeout to confirm the GPU is accessible before `llama@` starts.
-
-#### Verified result
-
-After reboot with `nvidia-persistenced.service` enabled, first inference request
-produces full throughput immediately:
-
-```
-tok/s: 32.7
-GPU clocks: 1200 MHz / 5701 MHz
-draft accept: 47/52 (90%)
-```
-
-No container restart or corrective action needed after boot.
+Docker 29.6.0 may not have this issue, but docker-compose is the
+recommended method for consistency across all deployments.
 
 ### Check GPU
 

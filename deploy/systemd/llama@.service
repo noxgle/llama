@@ -1,24 +1,17 @@
 [Unit]
 Description=llama.cpp server (%I)
 Documentation=https://github.com/ggml-org/llama.cpp
-# nvidia-persistenced.service keeps GPU driver state initialized across
-# reboots, preventing the "Post-Reboot Throughput Incident" (degraded ~1.5
-# tok/s on first model load). gpu-ready.service is an additional safety check.
-Requires=docker.service nvidia-persistenced.service gpu-ready.service
-After=docker.service network-online.target nvidia-persistenced.service gpu-ready.service
+Requires=docker.service
+After=docker.service network-online.target
 StartLimitIntervalSec=120
 StartLimitBurst=3
 
 [Service]
-# llama.sh starts a detached Docker container, waits for model load,
-# then runs warmup requests (~2 min) to populate CUDA JIT cache so the
-# first user request gets full GPU throughput (~30 tok/s, not ~1.5).
-# RemainAfterExit=yes keeps systemd tracking the service as "active".
-Type=oneshot
-RemainAfterExit=yes
+Type=exec
 ExecStart=/opt/llama/llama.sh start %i
 ExecStop=/opt/llama/llama.sh stop
-TimeoutStartSec=300
+Restart=on-failure
+RestartSec=15
 TimeoutStopSec=30
 
 # Security hardening
