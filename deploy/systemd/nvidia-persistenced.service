@@ -1,0 +1,15 @@
+[Unit]
+Description=NVIDIA Persistence Daemon
+Documentation=https://docs.nvidia.com/deploy/driver-persistence/persistence-daemon.html
+Wants=syslog.target
+After=syslog.target
+
+[Service]
+Type=forking
+ExecStart=/usr/bin/nvidia-persistenced --verbose
+ExecStopPost=/bin/rm -f /var/run/nvidia-persistenced/nvidia-persistenced.pid
+PIDFile=/var/run/nvidia-persistenced/nvidia-persistenced.pid
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

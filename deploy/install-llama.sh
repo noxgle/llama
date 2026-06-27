@@ -294,9 +294,21 @@ if [ -f "$INSTALL_DIR/deploy/systemd/llama@.service" ]; then
   systemctl enable "llama@$MODEL"
   info "systemd unit for llama@$MODEL enabled"
 
-  # gpu-ready.service — waits for NVIDIA GPU to be fully initialized
-  # before llama@ starts. This prevents the "Post-Reboot Throughput Incident"
-  # where the model loads in degraded GPU state (~1.5 tok/s).
+  # nvidia-persistenced.service — keeps GPU driver state initialized
+  # across reboots. This is the PRIMARY fix for the "Post-Reboot
+  # Throughput Incident" (~1.5 tok/s on first load after boot).
+  # Without it, the first CUDA context after boot runs in degraded mode.
+  if [ -f "$INSTALL_DIR/deploy/systemd/nvidia-persistenced.service" ]; then
+    cp "$INSTALL_DIR/deploy/systemd/nvidia-persistenced.service" /etc/systemd/system/
+    systemctl daemon-reload
+    systemctl enable nvidia-persistenced.service
+    info "nvidia-persistenced.service enabled — GPU state persists across reboots"
+  else
+    warn "nvidia-persistenced.service not found — GPU may be degraded after reboot"
+  fi
+
+  # gpu-ready.service — safety net: verifies GPU is accessible before
+  # the container starts. Runs after nvidia-persistenced.
   if [ -f "$INSTALL_DIR/deploy/systemd/gpu-ready.service" ] && \
      [ -f "$INSTALL_DIR/scripts/gpu-ready.sh" ]; then
     cp "$INSTALL_DIR/deploy/systemd/gpu-ready.service" /etc/systemd/system/
@@ -305,9 +317,9 @@ if [ -f "$INSTALL_DIR/deploy/systemd/llama@.service" ]; then
     chmod +x /opt/llama/scripts/gpu-ready.sh
     systemctl daemon-reload
     systemctl enable gpu-ready.service
-    info "gpu-ready.service enabled — GPU will be ready before model loads"
+    info "gpu-ready.service enabled — GPU readiness verified before model load"
   else
-    warn "gpu-ready files not found — container may load before GPU is ready"
+    warn "gpu-ready files not found — skipping GPU readiness check"
   fi
 else
   warn "deploy/systemd/llama@.service not found — skipping systemd setup"

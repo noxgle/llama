@@ -1,10 +1,11 @@
 [Unit]
 Description=llama.cpp server (%I)
 Documentation=https://github.com/ggml-org/llama.cpp
-# gpu-ready.service delays start until NVIDIA GPU is fully initialized,
-# preventing degraded throughput ("Post-Reboot Throughput Incident").
-Requires=docker.service gpu-ready.service
-After=docker.service network-online.target gpu-ready.service
+# nvidia-persistenced.service keeps GPU driver state initialized across
+# reboots, preventing the "Post-Reboot Throughput Incident" (degraded ~1.5
+# tok/s on first model load). gpu-ready.service is an additional safety check.
+Requires=docker.service nvidia-persistenced.service gpu-ready.service
+After=docker.service network-online.target nvidia-persistenced.service gpu-ready.service
 StartLimitIntervalSec=120
 StartLimitBurst=3
 

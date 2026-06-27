@@ -1,14 +1,16 @@
 [Unit]
 Description=Wait for NVIDIA GPU to be ready after boot
 Documentation=https://github.com/ggml-org/llama.cpp
-DefaultDependencies=no
-Before=docker.service
+# nvidia-persistenced keeps GPU initialized across reboots, preventing the
+# "Post-Reboot Throughput Incident". This service verifies GPU is accessible
+# as an additional safety check.
+After=nvidia-persistenced.service
 
 [Service]
 Type=oneshot
 RemainAfterExit=yes
 ExecStart=/opt/llama/scripts/gpu-ready.sh
-TimeoutStartSec=180
+TimeoutStartSec=30
 StandardOutput=journal
 StandardError=journal
 
