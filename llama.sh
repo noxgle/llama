@@ -209,15 +209,18 @@ warmup_model() {
     return 1
   fi
 
-  # Warmup requests — 3 iterations to fully populate CUDA graph cache
-  echo ">>> Warming up CUDA compute graphs..."
+  # Warmup requests — 3 iterations to fully populate CUDA JIT cache.
+  # First warmup generates ~200 tokens (slow ~1.5 tok/s on cold GPU) to
+  # trigger compilation of all common CUDA kernels. After JIT cache is
+  # populated, subsequent warmups and real requests run at full ~32 tok/s.
+  echo ">>> Warming up CUDA compute graphs (this may take ~2 min)..."
   local speeds=()
-  local prompt="Hi"
+  local prompt="Write a story"
   for i in 1 2 3; do
     local result
-    result=$(curl -sf --max-time 60 "$url/v1/chat/completions" \
+    result=$(curl -sf --max-time 300 "$url/v1/chat/completions" \
       -H "Content-Type: application/json" \
-      -d "{\"messages\":[{\"role\":\"user\",\"content\":\"$prompt $i\"}],\"max_tokens\":10}" 2>/dev/null)
+      -d "{\"messages\":[{\"role\":\"user\",\"content\":\"$prompt $i\"}],\"max_tokens\":200}" 2>/dev/null)
 
     if [ -n "$result" ]; then
       local tok_s

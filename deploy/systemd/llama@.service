@@ -10,12 +10,15 @@ StartLimitIntervalSec=120
 StartLimitBurst=3
 
 [Service]
-# llama.sh starts a detached Docker container and exits immediately.
+# llama.sh starts a detached Docker container, waits for model load,
+# then runs warmup requests (~2 min) to populate CUDA JIT cache so the
+# first user request gets full GPU throughput (~30 tok/s, not ~1.5).
 # RemainAfterExit=yes keeps systemd tracking the service as "active".
 Type=oneshot
 RemainAfterExit=yes
 ExecStart=/opt/llama/llama.sh start %i
 ExecStop=/opt/llama/llama.sh stop
+TimeoutStartSec=300
 TimeoutStopSec=30
 
 # Security hardening
