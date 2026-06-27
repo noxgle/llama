@@ -186,6 +186,63 @@ build_run_args() {
 }
 
 # ------------------------------------------------------------------
+# warmup_model — send synthetic requests to warm up CUDA compute graphs
+# ------------------------------------------------------------------
+warmup_model() {
+  local port="$1"
+  local model="$2"
+  local url="http://localhost:$port"
+
+  echo ">>> Waiting for model to load (health check)..."
+  local waited=0
+  while [ "$waited" -lt 120 ]; do
+    if curl -sf -m 3 "$url/health" 2>/dev/null | grep -q '"status":"ok"'; then
+      echo "    Model loaded after ${waited}s"
+      break
+    fi
+    sleep 5
+    waited=$((waited + 5))
+  done
+
+  if [ "$waited" -ge 120 ]; then
+    echo "    WARNING: Model did not become healthy within 120s" >&2
+    return 1
+  fi
+
+  # Warmup requests — 3 iterations to fully populate CUDA graph cache
+  echo ">>> Warming up CUDA compute graphs..."
+  local speeds=()
+  local prompt="Hi"
+  for i in 1 2 3; do
+    local result
+    result=$(curl -sf --max-time 60 "$url/v1/chat/completions" \
+      -H "Content-Type: application/json" \
+      -d "{\"messages\":[{\"role\":\"user\",\"content\":\"$prompt $i\"}],\"max_tokens\":10}" 2>/dev/null)
+
+    if [ -n "$result" ]; then
+      local tok_s
+      tok_s=$(echo "$result" | python3 -c "
+import sys, json
+d=json.load(sys.stdin)
+t=d.get('timings',{})
+tok = round(t.get('predicted_per_second',0), 1)
+print(tok)
+" 2>/dev/null || echo "?")
+      speeds+=("$tok_s")
+      echo "    Warmup $i/3: ${tok_s} tok/s"
+    else
+      echo "    WARNING: Warmup $i/3 failed" >&2
+    fi
+    prompt="$prompt."
+  done
+
+  # Print summary
+  local joined
+  joined=$(IFS=" → "; echo "${speeds[*]}")
+  echo "    Warmup complete: ${joined} tok/s"
+}
+
+# ------------------------------------------------------------------
 # start — stop existing, pull, run
 # ------------------------------------------------------------------
 cmd_start() {
@@ -224,6 +281,12 @@ cmd_start() {
   docker run "${DOCKER_ARGS[@]}" "$IMAGE" "${LLAMA_ARGS[@]}"
 
   echo ">>> Container $container started."
+
+  # Warmup CUDA compute graphs — first 2-3 inference requests after model
+  # load run at ~1.5 tok/s (cold CUDA graphs). By sending synthetic requests
+  # here, the first real user request gets full throughput (~32 tok/s).
+  warmup_model "$port" "$model"
+
   echo "    Health: http://localhost:$port/health"
   echo "    Logs:   $(basename "$0") logs $model"
 }
