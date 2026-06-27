@@ -293,6 +293,22 @@ if [ -f "$INSTALL_DIR/deploy/systemd/llama@.service" ]; then
   systemctl daemon-reload
   systemctl enable "llama@$MODEL"
   info "systemd unit for llama@$MODEL enabled"
+
+  # gpu-ready.service — waits for NVIDIA GPU to be fully initialized
+  # before llama@ starts. This prevents the "Post-Reboot Throughput Incident"
+  # where the model loads in degraded GPU state (~1.5 tok/s).
+  if [ -f "$INSTALL_DIR/deploy/systemd/gpu-ready.service" ] && \
+     [ -f "$INSTALL_DIR/scripts/gpu-ready.sh" ]; then
+    cp "$INSTALL_DIR/deploy/systemd/gpu-ready.service" /etc/systemd/system/
+    mkdir -p /opt/llama/scripts
+    cp "$INSTALL_DIR/scripts/gpu-ready.sh" /opt/llama/scripts/
+    chmod +x /opt/llama/scripts/gpu-ready.sh
+    systemctl daemon-reload
+    systemctl enable gpu-ready.service
+    info "gpu-ready.service enabled — GPU will be ready before model loads"
+  else
+    warn "gpu-ready files not found — container may load before GPU is ready"
+  fi
 else
   warn "deploy/systemd/llama@.service not found — skipping systemd setup"
 fi

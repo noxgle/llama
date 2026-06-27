@@ -38,23 +38,23 @@ Three production configurations are deployed, each on an RTX A2000 6 GB with 30 
 
 | Config | Model | File | Gen speed | RAM | VRAM (inference) |
 |--------|-------|:----:|:---------:|:---:|:----------------:|
-| `qwen3.6-35ba3b-mtp-unsloth.env` | Qwen3.6 Q4\_K\_M | 22.7 GB | **~32 tok/s** | 20/30 GiB | 5.2/6.0 GiB |
-| `qwen3.6-35ba3b-mtp-unsloth-q5.env` | Qwen3.6 Q5\_K\_M | 26 GB | **~28 tok/s** | 25/30 GiB | 5.3/6.0 GiB |
+| `qwen3.6-35ba3b-mtp-unsloth.env` | Qwen3.6 Q4\_K\_M | 22.7 GB | **~33 tok/s** | 20/30 GiB | 5.2/6.0 GiB |
+| `qwen3.6-35ba3b-mtp-unsloth-q5.env` | Qwen3.6 Q5\_K\_M | 26 GB | **~30 tok/s** | 25/30 GiB | 5.3/6.0 GiB |
 | `gemma4-26b-q4-k-m-mtp.env` | Gemma 4 Q4\_K\_M + MTP | ~17 GB | **~27 tok/s** | 15/30 GiB | 5.4/6.0 GiB |
 
 > **Thread count tuning:** All LXC containers are assigned exactly **4 CPUs** (`cat /sys/fs/cgroup/cpuset.cpus.effective`). Every config **must** match this count — `THREADS` and `THREADS_BATCH` set to 4. The previous default of 6 caused ~14–23% throughput loss from context switching overhead. Always verify the actual CPU count on a new target (LXC may not have all host cores).
 
 Two quant variants of Qwen3.6 are available:
 
-- **Q4_K_M (default)** — `configs/qwen3.6-35ba3b-mtp-unsloth.env` — ~32 tok/s, 22.7 GB model
-- **Q5_K_M (higher quality)** — `configs/qwen3.6-35ba3b-mtp-unsloth-q5.env` — ~28 tok/s (short), ~24 tok/s (60K sustained), 26 GB model
+- **Q4_K_M (default)** — `configs/qwen3.6-35ba3b-mtp-unsloth.env` — ~33 tok/s (q8_0 KV), 22.7 GB model
+- **Q5_K_M (higher quality)** — `configs/qwen3.6-35ba3b-mtp-unsloth-q5.env` — ~30 tok/s (q8_0 KV), 26 GB model
 
 #### Q4_K_M (production default)
 
 Key values:
 
 - `MODEL=unsloth/Qwen3.6-35B-A3B-MTP-GGUF:UD-Q4_K_M`
-- `CTX=163840` (160K)
+- `CTX=143360` (140K)
 - `NGLAYERS=999`
 - `SPEC_TYPE=draft-mtp`
 - `SPEC_DRAFT_N_MAX=1`
@@ -63,8 +63,8 @@ Key values:
 
 Typical steady-state (after full startup stabilization):
 
-- Throughput: **~32 tok/s** (short prompts), ~25 tok/s (60K+ prompt prefill at 505 t/s), ~23–24 tok/s during sustained generation of 4K+ tokens
-- VRAM: ~5.2 GiB / 6.0 GiB during inference (at 160K context, BATCH=3072), RAM: ~20/30 GiB
+- Throughput: **~33 tok/s** (short prompts, q8_0 KV cache), ~25 tok/s (60K+ prompt prefill at 505 t/s), ~23–24 tok/s during sustained generation of 4K+ tokens
+- VRAM: ~5.2–5.8 GiB / 6.0 GiB during inference (at 143K context, q8_0 KV cache, BATCH=3072), RAM: ~20/30 GiB
 
 ### Gemma 4 26B Alternative
 
@@ -380,8 +380,8 @@ Two Qwen3.6 variants are pre-configured:
 
 | Preset name | Source | Quality | Throughput | VRAM (inference) |
 |---|---|---|---|---:|
-| `qwen-q4` | `-hf unsloth/...:UD-Q4_K_M` | Good | ~29.8 tok/s | ~5221 MiB |
-| `qwen-q5` | `-m /models/qwen-q5-k-m.gguf` | Higher | ~27.2 tok/s | ~5471 MiB |
+| `qwen-q4` | `-hf unsloth/...:UD-Q4_K_M` | Good | ~28.4 tok/s | ~5231 MiB |
+| `qwen-q5` | `-m /models/qwen-q5-k-m.gguf` | Higher | ~28.2 tok/s | ~5393 MiB |
 
 The Q5 model file (26 GB) must be downloaded first — see `install-llama.sh qwen-q5`.
 
@@ -422,17 +422,18 @@ natychmiastowe.
 |---|---|---|---|---|
 | `MODEL` / `MODEL_FLAG` | Model selector | `MODEL=unsloth/...:UD-Q4_K_M` (HF) | `MODEL_FLAG=-m` + `MODEL=/models/qwen-q5-k-m.gguf` (local) | `MODEL_FLAG=-m` + `MODEL=/models/gemma4-26b-q4-k-m.gguf` (local) |
 | `DRAFT_MODEL` / `DRAFT_FLAG` | Draft model | (embedded MTP head) | (embedded MTP head) | `DRAFT_FLAG=-md` + `DRAFT_MODEL=/models/gemma4-26b-q8-mtp.gguf` |
-| `CTX` | Context length | `163840` | `163840` | `131072` |
+| `CTX` | Context length | `143360` | `143360` | `131072` |
 | `N_PREDICT` | Token cap (`-1` = unlimited) | `-1` | `-1` | `-1` |
 | `NGLAYERS` | Layers offloaded to GPU | `999` | `999` | `999` |
 | `GPU_LAYERS_DRAFT` | Draft model GPU offload | (embedded) | (embedded) | `99` (full draft on GPU) |
 | `CPUMOE` | MoE expert placement | (dense model, N/A) | (dense model, N/A) | `exps=CPU` |
 | `FLASHATTN` | Flash Attention | `on` | `on` | `on` |
 | `BATCH` / `UBATCH` | Batch settings | `3072` / `1536` | `3072` / `1536` | `512` / `512` |
-| `THREADS` / `THREADS_BATCH` | CPU thread settings | `6` / `6` | `6` / `6` | `6` / `6` |
+| `THREADS` / `THREADS_BATCH` | CPU thread settings | `4` / `4` | `4` / `4` | `4` / `4` |
 | `CTX_CHECKPOINTS` | KV context checkpoint slots per prompt | `4` | `4` | `4` |
+| `CACHE_TYPE_K` / `CACHE_TYPE_V` | KV cache quantization | `q8_0` / `q8_0` | `q8_0` / `q8_0` | `q4_0` / `q4_0` |
 | `SPEC_TYPE` | Speculative decoding mode | `draft-mtp` | `draft-mtp` | `draft-mtp` |
-| `SPEC_DRAFT_N_MAX` | MTP draft tokens per step | `2` | `2` | `2` |
+| `SPEC_DRAFT_N_MAX` | MTP draft tokens per step | `1` | `1` | `2` |
 
 ---
 
@@ -527,44 +528,42 @@ systemctl enable --now llama-gpu-watchdog.timer
 
 ### Current profile (Qwen3.6 35B-A3B MTP Unsloth, BATCH=3072/UBATCH=1536)
 
-Two quant variants available — Q4_K_M (default, ~30.5 tok/s) and Q5_K_M (higher quality, ~28.6 tok/s, see [Q5 profile](#qwen36-q5_k_m-profile)).
+Two quant variants available — Q4\_K\_M (default, ~33 tok/s with q8\_0 KV) and Q5\_K\_M (higher quality, ~30 tok/s, see [Q5 profile](#qwen36-q5_k_m-profile)).
 
-| Context | MTP | Throughput | VRAM |
-|---|---:|---:|---:|
-| 16K | N_MAX=3 | ~20.1 tok/s | ~4043 MiB |
-| 32K | N_MAX=1 | ~20.9 tok/s | ~4047 MiB |
-| 128K | N_MAX=1 | ~21.7 tok/s | ~4493 MiB |
-| **160K** | **N_MAX=2** | **~30.5 tok/s** | **~4473 MiB** (idle) / ~5311 MiB (inference) |
-| 176K\* | N_MAX=2 | ~23.1 tok/s | ~5555 MiB |
-| 192K† | N_MAX=2 | ~22.4 tok/s | ~5650 MiB |
+| Context | KV Cache | MTP | Throughput | VRAM |
+|---|---|---|---|---|
+| 143K | q8\_0 | N\_MAX=1 | ~29.7 tok/s | ~5705 MiB |
+| **150K** | **q8\_0** | **N\_MAX=1** | **~33.1 tok/s** ⭐ | **~5751 MiB** |
+| 160K | q4\_0 | N\_MAX=1 | ~29.1 tok/s | ~4473 MiB |
+| 160K | q4\_0 | N\_MAX=2 | ~27.5 tok/s | ~4473 MiB |
 
-MTP acceptance rate is typically ~76–80% (measured: 679/844 = 80% at 30K context; 380/500 = 76% at short context 17.06.2026).
+MTP acceptance rate is typically ~76–91% depending on KV cache precision (measured: 91% at 150K with q8\_0 KV cache; 80% at 160K with q4\_0 KV; 82% at 160K Q5).
 Upstream improvements (PR #23287) enable `backend_sampling=1` — MTP draft sampling offloaded to CUDA backend, reducing host synchronisation overhead.
 Throughput degrades to ~14–15 tok/s during sustained generation of 4K+ tokens per slot (KV cache pressure). Recovers to ~23 tok/s after slot release.
-\* 176K deprecated — reduced to 160K due to MTP CUDA OOM on 6 GB.
-† 192K deprecated — reduced due to VRAM pressure.
-‡ GPU upgraded from GTX 1060 6GB (Pascal) to RTX A2000 6GB (Ampere, Tensor Cores). Prefill speed improved from ~130 to ~505 tok/s (~3.9×). Throughput improved from ~24.1 to ~30.5 tok/s.
+⭐ Q4\_K\_M with q8\_0/q8\_0 KV cache is the new performance leader (2026-06-26 benchmark).
+‡ GPU upgraded from GTX 1060 6GB (Pascal) to RTX A2000 6GB (Ampere, Tensor Cores). Prefill speed improved from ~130 to ~505 tok/s (~3.9×). Throughput improved from ~24.1 to ~33.1 tok/s with q8\_0 KV optimization.
 § BATCH=3072/UBATCH=1536 optimized 2026-06-25: prefill +88% (269→505 t/s), total time −35% (294→192s) for ~60K prompts. See [Batch optimization](#batch-optimization).
 
 ### Qwen3.6 Q5_K_M profile
 
-| Config | MTP | Context | Throughput | Prefill | VRAM (idle) | VRAM (inference) | Notes |
-|---|---|---|---:|---:|---:|---:|---:|---|
-| `qwen3.6-35ba3b-mtp-unsloth-q5.env` | `draft-mtp` N_MAX=2 | 160K | **~27.2 tok/s** (short 500 tk) · 22.4 tok/s (60K prompt sustained) | 457 t/s (60K prompt) | ~5399 MiB | ~5471 MiB | −9% vs Q4, +908 MiB VRAM idle |
+| Config | MTP | KV Cache | Context | Throughput | Prefill | VRAM (idle) | VRAM (inference) | Notes |
+|---|---|---|---|---:|---:|---:|---:|---|
+| `qwen3.6-35ba3b-mtp-unsloth-q5.env` | `draft-mtp` N_MAX=1 | q8\_0 | 143K | **~30 tok/s** (short 500 tk) · 25.0 tok/s (60K prompt sustained) | 463 t/s (60K prompt) | ~5705 MiB | ~5795 MiB | −9% vs Q4 q8\_0 |
+| `qwen3.6-35ba3b-mtp-unsloth-q5.env` | `draft-mtp` N_MAX=1 | q4\_0 | 160K | ~27.5 tok/s (short 500 tk) | — | ~5399 MiB | ~5471 MiB | Legacy |
 
-Q5_K_M provides marginally higher quality than Q4_K_M at the cost of ~10% lower throughput
+Q5\_K\_M provides marginally higher quality than Q4\_K\_M at the cost of ~10% lower throughput
 and ~908 MiB more VRAM usage. Best suited when quality is prioritised over speed and
-headroom is adequate (88% → 89% VRAM usage during inference). MTP draft acceptance rate:
-~80% (measured: 308/382 tokens). The model file is 26 GB (vs 22.7 GB for Q4_K_M).
+headroom is adequate (93–94% VRAM usage during inference). MTP draft acceptance rate:
+~91% (q8\_0 KV, measured: 91.0%) / ~82% (q4\_0 KV). The model file is 26 GB (vs 22.7 GB for Q4\_K\_M).
 
-Benchmarked on standalone server (192.168.200.19, RTX A2000 6 GB, b9770, BATCH=3072/UBATCH=1536, context=160K).
+Benchmarked on standalone server (192.168.200.38, RTX A2000 6 GB, BATCH=3072/UBATCH=1536, THREADS=4).
 
 ### Gemma 4 26B profile
 
 | Config | MTP | Context | Throughput | VRAM | RAM | Notes |
-|---|---|---|---:|---:|---:|---|
-| `gemma4-26b-q4-k-m-mtp.env` | `draft-mtp` N_MAX=2 | 128K | **~27.4 tok/s** | ~5415 MiB | ~15 GiB | 🏆 Recommended |
-| `gemma4-26b-q8_0-mtp.env` | `draft-mtp` N_MAX=2 | 16K | **~11.3 tok/s** | ~4000 MiB | ~27 GiB | Near-lossless, RAM-tight |
+|---|---|---|---:|---:|---|---|
+| `gemma4-26b-q4-k-m-mtp.env` | `draft-mtp` N_MAX=2 | 128K | **~27.3 tok/s** | ~5415 MiB | ~15 GiB | 🏆 Recommended |
+| `gemma4-26b-q8_0-mtp.env` | `draft-mtp` N_MAX=2 | 16K | ~~**~11.3 tok/s**~~ | ~4000 MiB | ~27 GiB | Deprecated, RAM-tight |
 
 ### Historical profiles
 
@@ -577,12 +576,15 @@ Benchmarked on standalone server (192.168.200.19, RTX A2000 6 GB, b9770, BATCH=3
 
 10 knowledge tasks (data analysis, programming, logic, math, networking, creative writing, code review, SQL, ELI5, algorithms) tested with unlimited tokens and 300s timeout.
 
-| Model | Speed | Draft% | Tokens | Time | Grade |
-|-------|:----:|:------:|:------:|:----:|:-----:|
-| **Gemma4 26B Q4_K_M+MTP** | 27.3 tok/s | 89.6% | 14,574 | 9.7 min | **A** |
-| **Qwen3.6 35B A3B MTP** | 29.1 tok/s | 83.1% | 30,973 | 18.0 min | **A** |
+| Model | KV Cache | Speed | Draft% | Tokens | Time | Grade |
+|-------|----------|:----:|:------:|:------:|:----:|:-----:|
+| **Gemma 4 26B Q4_K_M+MTP** | q4\_0 | 27.3 tok/s | 89.6% | 14,574 | 9.7 min | **A** |
+| **Qwen3.6 35B Q4\_K\_M+MTP** | q4\_0 | 29.1 tok/s | 83.1% | 30,973 | 18.0 min | **A** |
+| **Qwen3.6 35B Q5\_K\_M+MTP** | q4\_0 | 27.5 tok/s | 82.0% | 33,080 | 20.5 min | **A** |
+| **Qwen3.6 35B Q5\_K\_M+MTP** | q8\_0 | 29.7 tok/s | 91.0% | 26,193 | 15.3 min | **A** |
+| **Qwen3.6 35B Q4\_K\_M+MTP** | **q8\_0** | **33.1 tok/s** | **91.3%** | 22,181 | **13.6 min** | **A** |
 
-Both models scored A in all 10 tasks. Gemma4 is more concise (2× fewer tokens, 2× faster total time). Qwen is faster per-token but more verbose.
+All models scored A in all 10 tasks. Gemma4 is the most concise (14,574 tokens — 2× fewer than Q4). Q4\_K\_M with q8\_0/q8\_0 KV cache is the fastest config (33.1 tok/s, 13.6 min total). Q5\_K\_M is the most verbose (33,080 tokens).
 Full details: [`scripts/benchmark-knowledge-compare.md`](scripts/benchmark-knowledge-compare.md).
 
 ### Batch optimization
@@ -632,12 +634,9 @@ Build workflow: `.github/workflows/build.yml`
 | Push to `master` | `ghcr.io/noxgle/llama-server:latest`, `:sha-<commit>` |
 | Tag `b*` | `ghcr.io/noxgle/llama-server:<tag>` |
 
-**First-time setup:**
-1. On the server, authenticate Docker with GHCR:
-   ```bash
-   echo <GITHUB_TOKEN> | docker login ghcr.io -u <user> --password-stdin
-   ```
-2. The `llama.sh` script uses `ghcr.io/noxgle/llama-server:latest` by default.
+The `llama.sh` script uses `ghcr.io/noxgle/llama-server:latest` by default.
+
+> **Note:** The image is public — no authentication required for pull.
 
 **Self-hosted runner (recommended):**
 Build on Proxmox (6-core, ~60-90 min) → push to GHCR → pull on target LXCs.

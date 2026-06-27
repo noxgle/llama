@@ -2,9 +2,9 @@
 
 ## Scope
 - **Dev server:** `root@192.168.200.38:/opt/llama` — RTX A2000 6 GB, compilation + config/model testing
-- **Production (prod-qwen3.6-35ba3b-mtp):** `root@192.168.200.20:/opt/llama` — RTX A2000 6 GB, Debian 13 trixie, Qwen3.6 35B A3B MTP, RAM 20/30 GiB, VRAM 5.2/6.0 GiB (~32 tok/s)
+- **Production (prod-qwen3.6-35ba3b-mtp):** `root@192.168.200.20:/opt/llama` — RTX A2000 6 GB, Debian 13 trixie, Qwen3.6 35B A3B MTP, RAM 20/30 GiB, VRAM 4.4–5.3/6.0 GiB (~33 tok/s with q8_0 KV)
 - **Production (prod-gemma4-26b-q4-k-m-mtp):** `root@192.168.200.21:/opt/llama` — RTX A2000 6 GB, Debian 13 trixie, Gemma4 26B Q4_K_M MTP, RAM 15/30 GiB, VRAM 5.4/6.0 GiB (~27 tok/s)
-- **Production (prod-qwen3.6-35ba3b-mtp-q5):** `root@192.168.200.19:/opt/llama` — RTX A2000 6 GB, Debian 13 trixie, Qwen3.6 35B A3B MTP Q5_K_M, RAM 25/30 GiB, VRAM 5.3/6.0 GiB (~28 tok/s), kodowanie
+- **Production (prod-qwen3.6-35ba3b-mtp-q5):** `root@192.168.200.19:/opt/llama` — RTX A2000 6 GB, Debian 13 trixie, Qwen3.6 35B A3B MTP Q5_K_M, RAM 25/30 GiB, VRAM 5.4–5.8/6.0 GiB (~30 tok/s with q8_0 KV), kodowanie
 - Operational SOTs: `llama.sh`, `configs/*.env`, `deploy/install-llama.sh`, `.github/workflows/build.yml`.
 
 ## Deployment gotchas (critical)
@@ -51,12 +51,13 @@ The `llama.sh` script avoids this issue entirely — it reads configs directly v
 ## Current production config (validated stable)
 - **Config file:** `configs/qwen3.6-35ba3b-mtp-unsloth.env`
 - **Model:** `unsloth/Qwen3.6-35B-A3B-MTP-GGUF:UD-Q4_K_M` (HF Unsloth dynamic GGUF)
-- **Context:** 163840 (160K)
-- **MTP:** `SPEC_TYPE=draft-mtp`, `SPEC_DRAFT_N_MAX=1` (~83% accept rate, ~27.5 tok/s)
+- **Context:** 143360 (140K)
+- **MTP:** `SPEC_TYPE=draft-mtp`, `SPEC_DRAFT_N_MAX=1` (~91% accept rate with q8_0 KV, ~83% with q4_0)
 - **BATCH=3072**, **UBATCH=1536** (baseline was 512/512; optimized 2026-06-25)
-- **VRAM:** ~4473/6144 MiB (prefill), ~5169/6144 MiB (inference, n=1), RAM: ~20/30 GiB
+- **CACHE_TYPE_K=q8_0**, **CACHE_TYPE_V=q8_0** (q8_0 KV cache: +8% draft accept, +14% throughput vs q4_0)
+- **VRAM:** ~5751/6144 MiB (idle, q8_0 KV), ~5311/6144 MiB (inference, n=1, q4_0 KV), RAM: ~20/30 GiB
 - **LLama.cpp commit:** `75ad0b2` (tag `b9770`, deployed 2026-06-23, built locally & scp'd)
-- **Benchmark (A/B vs 8086439):** +3% throughput (29.2→30.1 tok/s)
+- **Benchmark (A/B vs 8086439):** +3% throughput (29.2→30.1 tok/s) — superseded by q8_0 KV at 33.1 tok/s
 - Use this as the default reference. All Gemma 4 configs are legacy/archive.
 
 ### Batch size optimization (2026-06-25, dev .38)
@@ -81,12 +82,22 @@ Tested on Qwen3.6 35B-A3B B3072/UB1536, 500-token generation probe:
 | Config | Gen speed | vs baseline | VRAM | Acceptance | Notes |
 |--------|:-:|:-:|:-:|:-:|------|
 | n_max=1 | **27.49 tok/s** | **+2.0%** ⭐ | **5169 MiB** | 90/108=83% | **Optimal** — fastest, lowest VRAM |
-| n_max=2 | 26.95 tok/s | baseline | 5235 MiB | ~79% | Current production default |
+| n_max=2 | 26.95 tok/s | baseline | 5235 MiB | ~79% | Legacy (q4_0 KV) |
 | n_max=3 | 25.33 tok/s | −6.0% | 5329 MiB | — | Higher overhead negates MTP benefit |
 | n_max=4 | 22.51 tok/s | −16.5% | 5393 MiB | — | Worst — too many wasted draft tokens |
 | MTP off | 24.31 tok/s | −9.8% | 4161 MiB | N/A | Baseline without speculation |
 
 **Key finding:** `SPEC_DRAFT_N_MAX=1` is optimal for Qwen3.6 35B-A3B on RTX A2000 (6 GB). Each speculative token triggers expert computation on CPU (MoE), so drafting more than 1 token per step creates more overhead than the acceptance rate can compensate for. With n=2, the higher VRAM usage (85% vs 84%) also causes intermittent MTP crashes on model load.
+
+### q8_0 KV cache optimization (2026-06-26, dev .38)
+
+With q8_0/q8_0 KV cache instead of q4_0/q4_0:
+- **Q4_K_M throughput:** 29.1 → **33.1 tok/s** (+14%)
+- **Q5_K_M throughput:** 27.5 → **29.7 tok/s** (+8%)
+- **Draft acceptance:** +8–10% across all configs (83% → 91%)
+- **Verbosity reduction:** Q4: 30,973 → 22,181 tokens (−28%), Q5: 33,080 → 26,193 tokens (−21%)
+- **Trade-off:** VRAM usage higher (94% vs 73% idle), context reduced to 143K–150K
+- **Best overall:** Q4_K_M with q8_0/q8_0 KV — 33.1 tok/s, 91.3% draft accept, 13.6 min total time (knowledge benchmark)
 
 Also, `--no-mmap` and `--mlock` are already enabled in the default config and confirmed working.
 
@@ -278,7 +289,7 @@ Router mode tested with both Q4 (HF download) and Q5 (local file). Both models u
 | VRAM (idle) | 2069 MiB | 5393 MiB |
 | VRAM (inference) | 5231/6138 MiB (85%) | 5393/6138 MiB (88%) |
 | Gen speed (500 tk) | ~28.4 tok/s | ~28.2 tok/s |
-| Gen speed (short) | ~31-33 tok/s | ~30-34 tok/s |
+| Gen speed (short) | ~30 tok/s | ~28 tok/s |
 | Prompt speed (short) | ~47 t/s | ~42 t/s |
 | MTP acceptance | 72-81% | 86% |
 | RAM usage | ~18 GB | ~20 GB |

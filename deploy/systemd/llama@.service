@@ -1,8 +1,10 @@
 [Unit]
 Description=llama.cpp server (%I)
 Documentation=https://github.com/ggml-org/llama.cpp
-Requires=docker.service
-After=docker.service network-online.target
+# gpu-ready.service delays start until NVIDIA GPU is fully initialized,
+# preventing degraded throughput ("Post-Reboot Throughput Incident").
+Requires=docker.service gpu-ready.service
+After=docker.service network-online.target gpu-ready.service
 StartLimitIntervalSec=120
 StartLimitBurst=3
 
