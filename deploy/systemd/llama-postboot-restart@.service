@@ -1,0 +1,23 @@
+[Unit]
+Description=Post-boot corrective restart for llama.cpp server (%I)
+Documentation=https://github.com/ggml-org/llama.cpp
+# Wait for the main service to be fully started and Docker ready
+Requires=llama@%i.service docker.service
+After=llama@%i.service docker.service
+
+[Service]
+# Delayed restart to fix "Post-Reboot Throughput Incident":
+# after boot, GPU may be in degraded state — restarting the container
+# once after 90s ensures full GPU throughput without manual intervention.
+Type=oneshot
+ExecStart=/bin/sh -c 'sleep 90 && docker restart llama-%i'
+RemainAfterExit=yes
+
+# Security hardening (same as llama@.service)
+ProtectSystem=strict
+ReadOnlyPaths=/opt/llama
+BindPaths=/var/run/docker.sock:/var/run/docker.sock
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target
