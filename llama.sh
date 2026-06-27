@@ -168,18 +168,19 @@ build_run_args() {
   LLAMA_ARGS+=(--no-mmproj)
 
   # Speculative decoding (MTP / draft)
-  # Mirrors docker-compose.yml exactly: always passes flag + value pair.
   if [ -n "${SPEC_TYPE:-}" ]; then
     LLAMA_ARGS+=(--spec-type "$SPEC_TYPE")
     LLAMA_ARGS+=(--spec-draft-n-max "${SPEC_DRAFT_N_MAX:-3}")
 
-    # Draft model flag + value (compose: "${DRAFT_FLAG:---hf-repo-draft}" "${DRAFT_MODEL:-}")
-    LLAMA_ARGS+=("${DRAFT_FLAG:---hf-repo-draft}")
-    LLAMA_ARGS+=("${DRAFT_MODEL:-}")
-
-    LLAMA_ARGS+=(--gpu-layers-draft "${GPU_LAYERS_DRAFT:-0}")
-    LLAMA_ARGS+=(--spec-draft-n-min "${SPEC_DRAFT_N_MIN:-0}")
-    LLAMA_ARGS+=(--spec-draft-p-min "${SPEC_DRAFT_P_MIN:-0.0}")
+    # Draft model flag + value — skip if DRAFT_MODEL is empty
+    # (e.g. Qwen3.6 A3B MTP has the MTP head embedded in the same GGUF)
+    if [ -n "${DRAFT_MODEL:-}" ]; then
+      LLAMA_ARGS+=("${DRAFT_FLAG:---hf-repo-draft}")
+      LLAMA_ARGS+=("$DRAFT_MODEL")
+      LLAMA_ARGS+=(--gpu-layers-draft "${GPU_LAYERS_DRAFT:-0}")
+      LLAMA_ARGS+=(--spec-draft-n-min "${SPEC_DRAFT_N_MIN:-0}")
+      LLAMA_ARGS+=(--spec-draft-p-min "${SPEC_DRAFT_P_MIN:-0.0}")
+    fi
   fi
   fi
 }
