@@ -348,6 +348,15 @@ cp deploy/systemd/llama@.service /etc/systemd/system/
 systemctl enable --now llama@qwen   # auto-start on boot
 ```
 
+> **Important:** `nvidia-persistenced.service` is a **separate system service** (not part of `llama.sh`).
+> It must be enabled once to prevent degraded GPU throughput after reboot:
+> ```bash
+> cp deploy/systemd/nvidia-persistenced.service /etc/systemd/system/
+> systemctl daemon-reload
+> systemctl enable --now nvidia-persistenced.service
+> ```
+> The `install-llama.sh` script does this automatically. See "Post-Reboot Throughput Incident" in Troubleshooting.
+
 > **Note:** Gemma 4 uses local GGUF symlinks (`MODEL_FLAG=-m`, `DRAFT_FLAG=-md`). Ensure the model blobs exist in the HF cache first. See `AGENTS.md` → "HF download bug" for details.
 
 ### Router mode — dynamic model switching
@@ -660,27 +669,63 @@ Without this variable, the workflow falls back to `ubuntu-latest` (no GPU, slowe
 
 #### Symptom
 
-- After host/LXC reboot, service was healthy and GPU was visible, but throughput dropped to ~1.5–2 tok/s.
+After host/LXC reboot, the container was healthy and GPU was visible (`nvidia-smi`),
+but throughput dropped to ~1.5–2 tok/s instead of the expected 32–34 tok/s.
+A `docker restart llama-qwen` (or `systemctl restart llama@qwen`) immediately
+restored full throughput.
 
-#### Not the root cause
+#### Root cause
 
-- Not classic CPU fallback (GPU devices and VRAM were present).
-- Not a direct CTX root cause.
+The NVIDIA GPU driver state was not initialized after boot. When the first Docker
+container loaded the model, it created CUDA contexts with the driver in a "cold"
+state. These contexts ran in degraded mode (~1.5 tok/s). A container restart
+created a second set of CUDA contexts with the driver fully warmed, restoring
+full throughput (~32 tok/s).
 
-#### Root-cause category
+Specifically, the `nvidia-persistenced.service` (NVIDIA Persistence Daemon) was
+**not enabled** on the system. Without it, the GPU device files are not held open
+after boot, and the driver unloads GPU state between reboots. The daemon opens
+the device files at boot and keeps them open, ensuring the driver state persists.
 
-- Startup race / degraded runtime state after boot.
-- Manual `systemctl restart llama-compose.service` immediately restored ~22 tok/s.
+Note: legacy `nvidia-smi -pm 1` (kernel-level persistence mode) is **not sufficient**
+— the user-space daemon is required for reliable state retention. See
+[NVIDIA docs](https://docs.nvidia.com/deploy/driver-persistence/persistence-daemon.html).
 
 #### Resolution
 
-- Keep host NVIDIA readiness guard active.
-- Keep deterministic LXC compose startup service.
-- Add delayed post-boot corrective restart service.
+Enable `nvidia-persistenced.service` at boot:
+
+```bash
+# If the service file exists from NVIDIA driver package:
+systemctl enable --now nvidia-persistenced.service
+
+# If missing (e.g., LXC with manual driver install), deploy from repo:
+cp /opt/llama/deploy/systemd/nvidia-persistenced.service /etc/systemd/system/
+systemctl daemon-reload
+systemctl enable --now nvidia-persistenced.service
+```
+
+The `install-llama.sh` script handles this automatically for fresh installs.
+Existing installs should add the service manually as shown above.
+
+`llama@.service` depends on `nvidia-persistenced.service` via `Requires=` and
+`After=`, so the daemon starts before the model container.
+
+Additionally, `gpu-ready.service` acts as a safety net — it polls `nvidia-smi -L`
+with a 30-second timeout to confirm the GPU is accessible before `llama@` starts.
 
 #### Verified result
 
-- After reboot, throughput returns to ~22–23 tok/s.
+After reboot with `nvidia-persistenced.service` enabled, first inference request
+produces full throughput immediately:
+
+```
+tok/s: 32.7
+GPU clocks: 1200 MHz / 5701 MHz
+draft accept: 47/52 (90%)
+```
+
+No container restart or corrective action needed after boot.
 
 ### Check GPU
 
