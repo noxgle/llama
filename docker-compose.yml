@@ -65,6 +65,14 @@ services:
       - "--ctx-checkpoints"
       - "${CTX_CHECKPOINTS:-4}"
       - "--no-mmproj"
+      - "--cache-ram"
+      - "${CACHE_RAM:-4096}"
+      - "--cache-reuse"
+      - "${CACHE_REUSE:-256}"
+      - "--chat-template-kwargs"
+      - '{"preserve_thinking": true}'
+      - "--threads-http"
+      - "${THREADS_HTTP:-2}"
       # MTP speculative decoding (upstream PR #22673)
       - "--spec-type"
       - "${SPEC_TYPE:-none}"
