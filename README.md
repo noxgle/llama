@@ -73,6 +73,11 @@ Key values:
 - `SPEC_DRAFT_N_MAX=1`
 - `FLASHATTN=on`
 - `BATCH=3072`, `UBATCH=1536` (baseline was 512/512; optimized 2026-06-25, see [Batch optimization](#batch-optimization))
+- `CACHE_RAM=4096` (4 GiB prompt cache in system RAM)
+- `CACHE_REUSE=256` (KV cache reuse window)
+- `CTX_CHECKPOINTS=8`
+- `CHAT_TEMPLATE_KWARGS={"preserve_thinking": true}`
+- `THREADS_HTTP=2`
 
 Typical steady-state (after full startup stabilization):
 
@@ -446,7 +451,9 @@ natychmiastowe.
 | `FLASHATTN` | Flash Attention | `on` | `on` | `on` |
 | `BATCH` / `UBATCH` | Batch settings | `3072` / `1536` | `3072` / `1536` | `512` / `512` |
 | `THREADS` / `THREADS_BATCH` | CPU thread settings | `4` / `4` | `4` / `4` | `4` / `4` |
-| `CTX_CHECKPOINTS` | KV context checkpoint slots per prompt | `4` | `4` | `4` |
+| `CACHE_RAM` | Prompt cache in system RAM (MB) | `4096` | `4096` | `4096` |
+| `CACHE_REUSE` | KV cache reuse window (tokens) | `256` | `256` | `256` |
+| `CTX_CHECKPOINTS` | KV context checkpoint slots per prompt | `8` | `8` | `8` |
 | `CACHE_TYPE_K` / `CACHE_TYPE_V` | KV cache quantization | `q8_0` / `q8_0` | `q8_0` / `q8_0` | `q4_0` / `q4_0` |
 | `SPEC_TYPE` | Speculative decoding mode | `draft-mtp` | `draft-mtp` | `draft-mtp` |
 | `SPEC_DRAFT_N_MAX` | MTP draft tokens per step | `1` | `1` | `2` |
