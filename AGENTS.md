@@ -169,6 +169,11 @@ Also, `--no-mmap` and `--mlock` are already enabled in the default config and co
 
 ### `deploy/install-llama.sh` (LXC / bare metal bootstrap)
 
+> **⚠️ DO NOT modify `deploy/install-llama.sh` without explicit permission.**  
+> This file is a critical provisioning script shared across all deployments.
+> Changes must be reviewed and explicitly approved — do not edit it for config
+> tweaks, workarounds, or local experiments.
+
 Installs Docker, nvidia-container-toolkit, and a complete llama.cpp server on a
 fresh Debian 12+ or Ubuntu 22.04+ machine.  Run from a curl pipe — no repo
 checkout needed:
