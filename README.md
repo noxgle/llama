@@ -33,7 +33,7 @@ All configs, benchmarks, and optimisations assume this GPU class.
 - **Runtime:** Debian 13 LXC on Proxmox
 - **GPU:** NVIDIA RTX A2000 6GB
 - **RAM:** 32 GB physical (30 GB allocated to LXC container)
-- **CPU:** 6 cores
+- **CPU:** 4 vCPUs (LXC container, 6-core Proxmox host)
 - **Active project path:** `/opt/llama`
 
 ### Why 6 GB VRAM?
