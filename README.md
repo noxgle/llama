@@ -1,6 +1,10 @@
 # Llama.cpp Server with Docker
 
-Docker Compose setup for a remote `llama.cpp` OpenAI-compatible server with CUDA and upstream MTP speculative decoding.
+![NVIDIA RTX A2000 6GB](rtx_a2000.jpg)
+
+Docker Compose setup for a personal AI agent running locally — affordable, quiet, and fully private.
+
+The server serves a `llama.cpp` OpenAI-compatible API with CUDA and upstream MTP speculative decoding.
 
 This repository operates on:
 - **Proxmox host:** `root@192.168.200.7`
@@ -28,9 +32,18 @@ All configs, benchmarks, and optimisations assume this GPU class.
 
 - **Runtime:** Debian 13 LXC on Proxmox
 - **GPU:** NVIDIA RTX A2000 6GB
-- **RAM:** 30 GB
+- **RAM:** 32 GB physical (30 GB allocated to LXC container)
 - **CPU:** 6 cores
 - **Active project path:** `/opt/llama`
+
+### Why 6 GB VRAM?
+
+- **Affordable** — used RTX A2000 6 GB cards are relatively cheap compared to higher-VRAM alternatives
+- **Low power draw** — only ~70W at maximum load, ideal for a 24/7 home server
+- **Enough for modern models** — with quantization (Q4_K_M/Q5_K_M) and MTP speculative decoding, models like Qwen3.6 35B A3B and Gemma 4 26B run at useful speeds (~27–33 tok/s)
+- **RAM headroom** — 32 GB physical RAM (30 GB to LXC) covers model weights (22–26 GB) + KV cache + system overhead
+
+**Goal:** a personal AI agent for daily use — coding help, text analysis, Q&A — fully local, fully private.
 
 ### Current Production Profile
 
