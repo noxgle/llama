@@ -70,7 +70,7 @@ services:
       - "--cache-reuse"
       - "${CACHE_REUSE:-256}"
       - "--chat-template-kwargs"
-      - '{"preserve_thinking": true}'
+      - '{"preserve_thinking": false}'
       - "--threads-http"
       - "${THREADS_HTTP:-2}"
       # MTP speculative decoding (upstream PR #22673)

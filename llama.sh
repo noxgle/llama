@@ -133,7 +133,7 @@ build_run_args() {
     LLAMA_ARGS+=(--threads-batch "${THREADS_BATCH:-6}")
     LLAMA_ARGS+=(--parallel "${PARALLEL:-1}")
     LLAMA_ARGS+=(--poll "${POLL:-50}")
-    LLAMA_ARGS+=(--chat-template-kwargs '{"preserve_thinking": true}')
+    LLAMA_ARGS+=(--chat-template-kwargs '{"preserve_thinking": false}')
     LLAMA_ARGS+=(--threads-http "${THREADS_HTTP:-2}")
 
   # Normal (single-model) mode
@@ -170,7 +170,7 @@ build_run_args() {
   LLAMA_ARGS+=(--no-mmproj)
   LLAMA_ARGS+=(--cache-ram "${CACHE_RAM:-4096}")
   LLAMA_ARGS+=(--cache-reuse "${CACHE_REUSE:-256}")
-  LLAMA_ARGS+=(--chat-template-kwargs '{"preserve_thinking": true}')
+  LLAMA_ARGS+=(--chat-template-kwargs '{"preserve_thinking": false}')
   LLAMA_ARGS+=(--threads-http "${THREADS_HTTP:-2}")
 
   # Speculative decoding (MTP / draft)

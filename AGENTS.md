@@ -46,7 +46,7 @@ This file is a critical provisioning script shared across all deployments. Chang
 ### New flags added (2026-06-28)
 - `--cache-ram 4096` — prompt cache in system RAM (4 GiB). Works with all configs.
 - `--cache-reuse 256` — KV cache reuse window. **Ineffective for MTP/SWA contexts** (Qwen3.6, Gemma4) — logs `not supported by this context` / `forcing full prompt re-processing`. Flag is harmless, just ignored.
-- `--chat-template-kwargs {"preserve_thinking": true}` — returns `reasoning_content` in API responses (Qwen thinking tokens visible).
+- `--chat-template-kwargs {"preserve_thinking": false}` — Qwen internal reasoning tokens hidden in API.
 - `--threads-http 2` — HTTP server threads.
 
 ### Batch tuning (RTX A2000 6 GB)

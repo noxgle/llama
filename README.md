@@ -76,7 +76,7 @@ Key values:
 - `CACHE_RAM=4096` (4 GiB prompt cache in system RAM)
 - `CACHE_REUSE=256` (KV cache reuse window)
 - `CTX_CHECKPOINTS=8`
-- `CHAT_TEMPLATE_KWARGS={"preserve_thinking": true}`
+- `CHAT_TEMPLATE_KWARGS={"preserve_thinking": false}`
 - `THREADS_HTTP=2`
 
 Typical steady-state (after full startup stabilization):
