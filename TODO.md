@@ -15,34 +15,43 @@ Unsloth Gemma4 QAT, TurboQuant fork.
 - [!] Uwaga: build na GitHub-hosted runner (brak self-hosted), obraz z cache.
       Stable tag OK do rollbacku, ale do Phase 1 trzeba świeżego builda.
 
-## Phase 1: Rebuild image (b9770 → b9837)
-- [ ] **Build na dev serverze** `root@192.168.200.38`:
-      ```
-      ssh root@192.168.200.38
-      cd /opt/llama
-      docker compose build --no-cache
-      ```
-      (lub przez CI z `no-cache: true` w workflow_dispatch)
-- [ ] Jeśli build przez CI: `gh workflow run build.yml --ref master -f llama_ref=master -f build_jobs=6`
-- [ ] Zweryfikować nowy image: `docker compose pull` na dev (jeśli CI)
-- [ ] Smoke test: health endpoint + `curl` probe (short prompt)
-- [ ] GPU guard: `scripts/benchmark-guarded-remote.sh` na dev
-- [ ] Knowledge benchmark: `scripts/benchmark-knowledge.sh` (obecne baseline: Qwen ~33 tok/s, Gemma4 ~27.8 tok/s)
-- [ ] MTP draft benchmark: `scripts/benchmark-draft-mtp.sh`
-- [ ] Potwierdzić: flash-attn, cache-ram, cache-reuse, --preserve-thinking działają
-- [ ] Jeśli OK: deploy na prod Qwen (192.168.200.20), Gemma4 (192.168.200.21), Q5 (192.168.200.19)
+## Phase 1: Rebuild image (b9770 → b9837) ✅
+- [x] **Build na dev serverze** `docker compose build --no-cache` → commit `8c146a8`, ~30 min
+- [x] Smoke test: health + curl — **OK** (32.9 tok/s, 500 tok)
+- [x] Potwierdzone: flash-attn, cache-ram, cache-reuse, --preserve-thinking działają
+- [x] **Cache reuse**: loguje `not supported by this context` (MTP/SWA) — harmless, jak poprzednio
+- [x] **Nowe w logach**: `graphs reused = 264` — CUDA graph caching aktywny defaultowo
+- [x] **MTP**: draft acceptance 87.2%, mean len 1.87
 
-## Phase 2: GGML_CUDA_GRAPH_OPT=1
-- [ ] Dodać `CUDAGRAPH_OPT=1` do `docker-compose.yml` jako `GGML_CUDA_GRAPH_OPT`
-- [ ] Dodać do `configs/*.env`:
-      ```
-      CUDAGRAPH_OPT=1
-      ```
-- [ ] Test na dev: Qwen3.6 Q4_K_M — porównanie TG tok/s (przed/po)
-- [ ] Test na dev: Gemma4 26B Q4_K_M — porównanie TG tok/s
-- [ ] Sprawdzić VRAM usage (nvidia-smi) — czy nie zwiększa footprintu
-- [ ] Knowledge benchmark z `CUDAGRAPH_OPT=1`
-- [ ] Jeśli stabilne: deploy na prod
+### Wyniki benchmarków Phase 1+2:
+
+| Test | Konfig | tok/s | Prefill tok/s | Uwagi |
+|------|--------|-------|---------------|-------|
+| Short 500 tok x3 | Default | 32.3-32.9 | 45.4-45.8 | Stabilny |
+| Short 500 tok x3 | `GGML_CUDA_GRAPH_OPT=0` | 32.5-33.2 | 36.2-45.7 | Identyczny! |
+| Medium 1000 tok | Default | 32.4 | 54.0 | |
+| Medium 1000 tok | `GGML_CUDA_GRAPH_OPT=0` | 31.7 | 51.8 | |
+| Long 44K | Default | 29.7 | **669.4** | |
+| Long 45K | Default | 29.9 | **673.0** | |
+| Long 45K | Default | 31.8 | **687.6** | |
+| Long 100K | Default | 26.5 | **477.0** | ~210s total |
+| Sustained 5x300 | Default | 32.5-33.0 | 45.8-48.2 | Brak degradacji |
+
+### Kluczowe wnioski (Phase 1+2):
+1. **Prefill olbrzymi skok**: ~680 tok/s (vs stare ~505 tok/s) → **+35%** przy 45K kontekście
+2. **GGML_CUDA_GRAPH_OPT=0/1 bez różnicy** na RTX A2000 — GPU memory-bandwidth-bound, kernel launch nie jest bottleneckiem
+3. **Sustained throughput stabilny**: 33 tok/s bez degradacji
+4. `graphs reused = N` w logach to standardowy CUDA graph caching, a nie `GGML_CUDA_GRAPH_OPT`
+5. Commit `8c146a8` (branża `master` na 2026-06-29) vs poprzedni `75ad0b2` (b9770)
+
+
+
+## Phase 3: Batch tuning Gemma4 ✅
+- [x] Test na dev z Gemma4 (bez MTP): BATCH=512/1024/2048/3072
+- [x] **Wynik: batch size nie wpływa na generację** — memory-bandwidth-bound (~22.8 tok/s)
+- [x] Prefill poprawia się z większym batchem: 1022→1108 tok/s (3072/1536, +8.4%)
+- [x] VRAM stable: 4.0-4.1 GB / 6 GB (~68%)
+- [x] Rekomendacja dla Gemma4 config: podnieść `BATCH=1024` / `UBATCH=1024` zamiast 512/512
 
 ## Phase 3: Batch tuning Gemma4
 - [ ] Obecnie: `BATCH=512/UBATCH=512`. Przetestować:

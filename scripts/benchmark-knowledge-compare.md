@@ -9,24 +9,26 @@
 | 3 | **Qwen3.6 35B A3B MTP Q5_K_M** (unlimited, q4_0/q4_0 KV) | 27.5 | 82.0% | 33,080 | **20.5 min** | **A** | A | A | A | A | A | A | A | A | A | A |
 | 4 | **Qwen3.6 35B A3B MTP Q5_K_M q8_0/q8_0** (unlimited, 143K) | 29.7 | 91.0% | 26,193 | 15.3 min | **A** | A | A | A | A | A | A | A | A | A | A |
 | 5 | **Qwen3.6 35B A3B MTP Q4_K_M q8_0/q8_0** (unlimited, 150K) | **33.1** | **91.3%** | 22,181 | **13.6 min** | **A** | A | A | A | A | A | A | A | A | A | A |
+| 6 | **Qwen3.6 35B A3B MTP Q4_K_M q8_0/q8_0** (2026-06-29, `8c146a8`) | **33.0** | **90.5%** | 28,195 | **15.0 min** | **A** | A | A | A | A | A | A | A | A | A | A |
 
 <!-- Add rows from #5 upwards. Columns: Speed (tok/s), Draft% (draft accept rate), Total tok, Total time, Grade (overall), Data/.../Algo (per-task grades A-F) -->
 
 ### Model Comparison Highlights
 
-| Aspect | Gemma4 26B | Qwen Q4 (q4_0) | Qwen Q5 (q4_0) | Qwen Q5 q8_0 | Qwen Q4 q8_0 |
-|--------|------------|----------------|-----------------|-----------------|--------------------|
-| **Speed** | 27.3 tok/s | 29.1 tok/s | 27.5 tok/s | 29.7 tok/s (+2%) | **33.1 tok/s** (+14%) |
-| **Draft accept** | 89.6% | 83.1% | 82.0% | 91.0% | **91.3%** |
-| **Total tokens** | **14,574** | 30,973 | 33,080 | 26,193 | 22,181 |
-| **Total time** | **9.7 min** | 18.0 min | 20.5 min | 15.3 min | **13.6 min** |
-| **Tasks** | 10/10 (A) | 10/10 (A) | 10/10 (A) | 10/10 (A) | 10/10 (A) |
-| **Server** | .21 (prod) | .20 (prod) | .19 (prod) | .38 (dev) | .38 (dev) |
-| **GPU VRAM** | 5415 MiB | 4473 MiB | 5471 MiB | 5705 MiB | **5751 MiB** |
-| **Context** | 131K (Q4_0) | 160K (Q4_0) | 160K (Q4_0) | 143K (Q8_0) | 150K (Q8_0) |
-| **MTP** | n_max=2 | n_max=1 | n_max=1 | n_max=1 | n_max=1 |
+| Aspect | Gemma4 26B | Qwen Q4 (q4_0) | Qwen Q5 (q4_0) | Qwen Q5 q8_0 | Qwen Q4 q8_0 | Qwen Q4 q8_0'29 |
+|--------|------------|----------------|-----------------|-----------------|--------------------|-------------------|
+| **Speed** | 27.3 tok/s | 29.1 tok/s | 27.5 tok/s | 29.7 tok/s | **33.1 tok/s** | 33.0 tok/s |
+| **Draft accept** | 89.6% | 83.1% | 82.0% | 91.0% | **91.3%** | 90.5% |
+| **Total tokens** | **14,574** | 30,973 | 33,080 | 26,193 | 22,181 | 28,195 |
+| **Total time** | **9.7 min** | 18.0 min | 20.5 min | 15.3 min | **13.6 min** | 15.0 min |
+| **Tasks** | 10/10 (A) | 10/10 (A) | 10/10 (A) | 10/10 (A) | 10/10 (A) | 10/10 (A) |
+| **Server** | .21 (prod) | .20 (prod) | .19 (prod) | .38 (dev) | .38 (dev) | .38 (dev) |
+| **Build** | b9770 | b9770 | b9770 | b9770 | b9770 | **`8c146a8`** |
+| **GPU VRAM** | 5415 MiB | 4473 MiB | 5471 MiB | 5705 MiB | **5751 MiB** | — |
+| **Context** | 131K (Q4_0) | 160K (Q4_0) | 160K (Q4_0) | 143K (Q8_0) | 150K (Q8_0) | — |
+| **MTP** | n_max=2 | n_max=1 | n_max=1 | n_max=1 | n_max=1 | n_max=1 |
 
-*🏆 Q4 q8_0/q8_0 is the new performance king: 33.1 tok/s (+14%), 91.3% draft accept, 13.6 min total. Q5 q8_0/q8_0 also beats all q4_0/q4_0 configs. The q8_0 KV cache improves MTP accept rate across the board, more than compensating for slightly smaller context.*
+*🏆 Generation speed unchanged across builds (~33 tok/s). The key gain from `8c146a8` is **+35% prefill** (505→680 t/s). The new build matches the previous generation throughput.*
 
 ## Detailed Results
 

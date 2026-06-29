@@ -81,7 +81,7 @@ Key values:
 
 Typical steady-state (after full startup stabilization):
 
-- Throughput: **~33 tok/s** (short prompts, q8_0 KV cache), ~25 tok/s (60K+ prompt prefill at 505 t/s), ~23–24 tok/s during sustained generation of 4K+ tokens
+- Throughput: **~33 tok/s** (short prompts, q8_0 KV cache), ~30 tok/s (44K prompt, prefill at **680 t/s**), ~27 tok/s (100K prompt, prefill at 477 t/s), ~23–24 tok/s during sustained generation of 4K+ tokens
 - VRAM: ~5.2–5.8 GiB / 6.0 GiB during inference (at 143K context, q8_0 KV cache, BATCH=3072), RAM: ~20/30 GiB
 
 ### Gemma 4 26B Alternative
@@ -98,13 +98,13 @@ Key values:
 - `NGLAYERS=999` (full GPU offload of non-expert layers; MoE experts on CPU via `CPUMOE=exps=CPU`)
 - `SPEC_TYPE=draft-mtp`, `SPEC_DRAFT_N_MAX=2`
 - `GPU_LAYERS_DRAFT=99` (draft model fully on GPU)
-- `BATCH=512`, `UBATCH=512`
+- `BATCH=1024`, `UBATCH=1024` (baseline 512; batch size doesn't affect generation on A2000, but larger batches improve prefill)
 - `FLASHATTN=on`
 
 Typical steady-state:
 
-- Throughput: **~27 tok/s** (RTX A2000, short prompts)
-- VRAM: **~5.4 GiB / 6.0 GiB** (at 128K context, BATCH=512), RAM: ~15/30 GiB
+- Throughput: **~27 tok/s** (RTX A2000, short prompts with MTP)
+- VRAM: **~5.4 GiB / 6.0 GiB** (at 128K context, BATCH=1024), RAM: ~15/30 GiB
 - Draft acceptance rate: **~82%**
 
 ### Router mode (experimental)
@@ -373,7 +373,7 @@ systemctl enable --now llama@qwen   # auto-start on boot
 
 ### Router mode — dynamic model switching
 
-> **Experimental** — tested on b9770 (RTX A2000). Child processes inherit all per-model settings.
+> **Experimental** — tested on RTX A2000. Child processes inherit all per-model settings.
 
 Starts a model router that loads/unloads models on demand via API — no restart needed.
 
@@ -406,7 +406,7 @@ Two Qwen3.6 variants are pre-configured:
 
 The Q5 model file (26 GB) must be downloaded first — see `install-llama.sh qwen-q5`.
 
-#### ⚠️ Poznane ograniczenia routera (stan na b9770, RTX A2000 6 GB)
+#### ⚠️ Poznane ograniczenia routera (stan na RTX A2000 6 GB)
 
 - **VRAM leak przy przełączaniu modeli** — `POST /models/load` nie zwalnia w pełni VRAM
   poprzedniego modelu. Przełączenie Q4↔Q5 na karcie 6 GB wymaga
@@ -449,7 +449,7 @@ natychmiastowe.
 | `GPU_LAYERS_DRAFT` | Draft model GPU offload | (embedded) | (embedded) | `99` (full draft on GPU) |
 | `CPUMOE` | MoE expert placement | (dense model, N/A) | (dense model, N/A) | `exps=CPU` |
 | `FLASHATTN` | Flash Attention | `on` | `on` | `on` |
-| `BATCH` / `UBATCH` | Batch settings | `3072` / `1536` | `3072` / `1536` | `512` / `512` |
+| `BATCH` / `UBATCH` | Batch settings | `3072` / `1536` | `3072` / `1536` | `1024` / `1024` |
 | `THREADS` / `THREADS_BATCH` | CPU thread settings | `4` / `4` | `4` / `4` | `4` / `4` |
 | `CACHE_RAM` | Prompt cache in system RAM (MB) | `4096` | `4096` | `4096` |
 | `CACHE_REUSE` | KV cache reuse window (tokens) | `256` | `256` | `256` |
@@ -560,18 +560,18 @@ Two quant variants available — Q4\_K\_M (default, ~33 tok/s with q8\_0 KV) and
 | 160K | q4\_0 | N\_MAX=1 | ~29.1 tok/s | ~4473 MiB |
 | 160K | q4\_0 | N\_MAX=2 | ~27.5 tok/s | ~4473 MiB |
 
-MTP acceptance rate is typically ~76–91% depending on KV cache precision (measured: 91% at 150K with q8\_0 KV cache; 80% at 160K with q4\_0 KV; 82% at 160K Q5).
+MTP acceptance rate is typically ~76–95% depending on KV cache precision (measured: 95% at 44K with q8\_0 KV cache; 90% across 10 knowledge tasks).
 Upstream improvements (PR #23287) enable `backend_sampling=1` — MTP draft sampling offloaded to CUDA backend, reducing host synchronisation overhead.
 Throughput degrades to ~14–15 tok/s during sustained generation of 4K+ tokens per slot (KV cache pressure). Recovers to ~23 tok/s after slot release.
-⭐ Q4\_K\_M with q8\_0/q8\_0 KV cache is the new performance leader (2026-06-26 benchmark).
-‡ GPU upgraded from GTX 1060 6GB (Pascal) to RTX A2000 6GB (Ampere, Tensor Cores). Prefill speed improved from ~130 to ~505 tok/s (~3.9×). Throughput improved from ~24.1 to ~33.1 tok/s with q8\_0 KV optimization.
+⭐ Q4\_K\_M with q8\_0/q8\_0 KV cache remains the performance leader (2026-06-29 benchmark, commit `8c146a8`).
+‡ GPU upgraded from GTX 1060 6GB (Pascal) to RTX A2000 6GB (Ampere, Tensor Cores). Prefill speed improved from ~130 to ~505 tok/s (~3.9×) on b9770, then further to **~680 tok/s** (+35%) with build `8c146a8` (2026-06-29).
 § BATCH=3072/UBATCH=1536 optimized 2026-06-25: prefill +88% (269→505 t/s), total time −35% (294→192s) for ~60K prompts. See [Batch optimization](#batch-optimization).
 
 ### Qwen3.6 Q5_K_M profile
 
 | Config | MTP | KV Cache | Context | Throughput | Prefill | VRAM (idle) | VRAM (inference) | Notes |
 |---|---|---|---|---:|---:|---:|---:|---|
-| `qwen3.6-35ba3b-mtp-unsloth-q5.env` | `draft-mtp` N_MAX=1 | q8\_0 | 143K | **~30 tok/s** (short 500 tk) · 25.0 tok/s (60K prompt sustained) | 463 t/s (60K prompt) | ~5705 MiB | ~5795 MiB | −9% vs Q4 q8\_0 |
+| `qwen3.6-35ba3b-mtp-unsloth-q5.env` | `draft-mtp` N_MAX=1 | q8\_0 | 143K | **~30 tok/s** (short 500 tk) · 25.0 tok/s (60K prompt sustained) | ~630 t/s (60K prompt, est.) | ~5705 MiB | ~5795 MiB | −9% vs Q4 q8\_0 |
 | `qwen3.6-35ba3b-mtp-unsloth-q5.env` | `draft-mtp` N_MAX=1 | q4\_0 | 160K | ~27.5 tok/s (short 500 tk) | — | ~5399 MiB | ~5471 MiB | Legacy |
 
 Q5\_K\_M provides marginally higher quality than Q4\_K\_M at the cost of ~10% lower throughput
@@ -606,8 +606,9 @@ Benchmarked on standalone server (192.168.200.38, RTX A2000 6 GB, BATCH=3072/UBA
 | **Qwen3.6 35B Q5\_K\_M+MTP** | q4\_0 | 27.5 tok/s | 82.0% | 33,080 | 20.5 min | **A** |
 | **Qwen3.6 35B Q5\_K\_M+MTP** | q8\_0 | 29.7 tok/s | 91.0% | 26,193 | 15.3 min | **A** |
 | **Qwen3.6 35B Q4\_K\_M+MTP** | **q8\_0** | **33.1 tok/s** | **91.3%** | 22,181 | **13.6 min** | **A** |
+| **Qwen3.6 35B Q4\_K\_M+MTP** (2026-06-29, `8c146a8`) | **q8\_0** | **33.0 tok/s** | **90.5%** | 28,195 | **15.0 min** | **A** |
 
-All models scored A in all 10 tasks. Gemma4 is the most concise (14,574 tokens — 2× fewer than Q4). Q4\_K\_M with q8\_0/q8\_0 KV cache is the fastest config (33.1 tok/s, 13.6 min total). Q5\_K\_M is the most verbose (33,080 tokens).
+All models scored A in all 10 tasks. Gemma4 is the most concise (14,574 tokens — 2× fewer than Q4). Q4\_K\_M with q8\_0/q8\_0 KV cache is the fastest config (33.0–33.1 tok/s, ~14–15 min total). The 2026-06-29 build (`8c146a8`) matches the previous generation speed while delivering **+35% prefill** (680 vs 505 t/s). Q5\_K\_M is the most verbose (33,080 tokens).
 Full details: [`scripts/benchmark-knowledge-compare.md`](scripts/benchmark-knowledge-compare.md).
 
 ### Batch optimization
@@ -632,6 +633,8 @@ Large-prompt benchmark (~60K tokens Qwen tokenized) tested 8 BATCH/UBATCH combin
 - **Danger zone:** 4096/2048 works (93% VRAM, fastest), but 5120/2560 causes OOM during MTP draft context allocation.
 - **Generation speed is unaffected** by batch size (~25 t/s across all configs) — it's dominated by memory bandwidth on the A2000 for the 22 GB model.
 
+> **2026-06-29 update (build `8c146a8`):** The relative scaling between batch sizes remains identical to the table above, but absolute prefill speeds increased by **~35%** across all configurations. E.g., the chosen 3072/1536 config now reaches **~680 t/s** (up from 505 t/s) at 45K context. The `BATCH=3072/UBATCH=1536` recommendation still stands.
+
 Benchmark script: [`scripts/benchmark-batch.sh`](scripts/benchmark-batch.sh) (generates ~60K-token prompt, measures prefill/gen speed and VRAM; set `N_RUNS=1` for single probe, requires clean server restart between configs).
 
 ---
@@ -639,12 +642,13 @@ Benchmark script: [`scripts/benchmark-batch.sh`](scripts/benchmark-batch.sh) (ge
 ## Build Info
 
 - Source: `ggml-org/llama.cpp.git`
-- Ref: `LLAMA_REF=b9770` (commit `75ad0b2`, 2026-06-23)
-- Previous commit: `8086439` (2026-06-17, replaced with b9770)
+- Ref: `master` (commit `8c146a8`, 2026-06-29)
+- Previous ref: `b9770` (commit `75ad0b2`, 2026-06-23)
 - CUDA base image: `nvidia/cuda:12.4.0-devel-ubuntu22.04`
 - Build flag: `-DGGML_CUDA_NCCL=OFF`
+- **b9837+ key improvements:** CUDA graph caching active by default (`graphs reused = N` in logs), SoA prefill optimizations
 - **b9770 key PRs:** flash mtp3 (#24340), CUDA PDL MoE (#24087), Step3.5 MTP fix (#24060), MTP verify batch (#21845)
-- **A/B benchmark vs 8086439:** Qwen3.6 +3% (29.2→30.1), Gemma4 +7.5% (25.5→27.4)
+- **A/B benchmark vs b9770 (2026-06-29):** — prefill **+35%** (505→680 tok/s at 45K ctx), generation steady (~33 tok/s Qwen, ~23 tok/s Gemma4)
 
 ---
 

@@ -16,6 +16,7 @@ services:
       - ./models:/models:ro
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
+      - GGML_CUDA_GRAPH_OPT=${GGML_CUDA_GRAPH_OPT:-1}
     deploy:
       resources:
         reservations:
