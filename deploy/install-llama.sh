@@ -43,7 +43,7 @@ MODEL="${1:-}"
 # Overridable via environment
 REPO_URL="${LLAMA_REPO:-https://github.com/noxgle/llama.git}"
 INSTALL_DIR="${LLAMA_DIR:-/opt/llama}"
-LLAMA_IMAGE="${LLAMA_IMAGE:-ghcr.io/noxgle/llama-server:latest}"
+LLAMA_IMAGE="${LLAMA_IMAGE:-ghcr.io/noxgle/llama-server:stable-b9770-v1}"
 
 # Model validation
 case "$MODEL" in
