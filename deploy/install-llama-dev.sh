@@ -84,11 +84,8 @@ BUILD_JOBS="${BUILD_JOBS:-6}"
 if [ -z "$MODEL" ]; then
   echo "Usage: $(basename "$0") [--skip-predownload] <config-name>" >&2
   echo "" >&2
-  echo "Available configs:" >&2
-  for f in "$(dirname "$0")/../configs/"*.env; do
-    name=$(basename "$f" .env)
-    echo "  $name" >&2
-  done
+  echo "Config files are read from \$INSTALL_DIR/configs/ after cloning the repo." >&2
+  echo "Examples: qwen3.6-35ba3b-mtp-unsloth, gemma4-26b-q4-k-m-mtp" >&2
   exit 1
 fi
 
@@ -119,11 +116,6 @@ if ! command -v apt-get &>/dev/null; then
   die "This script requires apt-get (Debian/Ubuntu)"
 fi
 
-CONFIG_FILE="$(cd "$(dirname "$0")/../configs" && pwd)/${MODEL}.env"
-if [ ! -f "$CONFIG_FILE" ]; then
-  die "Config not found: $CONFIG_FILE"
-fi
-
 echo ""
 info "Target:  $(. /etc/os-release && echo "$ID $VERSION_CODENAME ($VERSION_ID)")"
 info "Model:   $MODEL"
@@ -131,7 +123,6 @@ info "Repo:    $REPO_URL"
 info "Ref:     $LLAMA_REF"
 info "Build:   $BUILD_JOBS jobs"
 info "Install: $INSTALL_DIR"
-info "Config:  $CONFIG_FILE"
 
 # ==================================================================
 # 1. Install Docker Engine
@@ -266,6 +257,20 @@ if [ ! -f "$INSTALL_DIR/llama.sh" ]; then
   die "llama.sh not found in $INSTALL_DIR — clone may have failed"
 fi
 chmod +x "$INSTALL_DIR/llama.sh"
+
+CONFIG_FILE="$INSTALL_DIR/configs/${MODEL}.env"
+if [ ! -f "$CONFIG_FILE" ]; then
+  echo ""
+  warn "Config not found: $CONFIG_FILE"
+  echo ""
+  info "Available configs in $INSTALL_DIR/configs/:"
+  for f in "$INSTALL_DIR/configs/"*.env; do
+    name=$(basename "$f" .env)
+    echo "    $name"
+  done
+  die "Specify a valid config name"
+fi
+info "Config:  $CONFIG_FILE"
 
 # ==================================================================
 # 5. Create storage (Docker volume + models dir)
