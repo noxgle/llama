@@ -19,7 +19,7 @@ name: Build llama-server
 on:
   push:
     branches: [master]
-    tags: ['b*']
+    tags: ['b*', 'stable*']
   workflow_dispatch:
     inputs:
       llama_ref:
