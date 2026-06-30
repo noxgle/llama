@@ -15,8 +15,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         git cmake build-essential libcurl4-openssl-dev libssl-dev curl ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Clone pinned llama.cpp reference (tag, branch, or commit)
-RUN git clone --depth 1 --branch ${LLAMA_REF} ${LLAMA_REPO} /tmp/llama-cpp-build
+# Clone pinned llama.cpp reference (tag, branch, or commit hash)
+RUN git init /tmp/llama-cpp-build && \
+    cd /tmp/llama-cpp-build && \
+    git remote add origin ${LLAMA_REPO} && \
+    git fetch --depth 1 origin ${LLAMA_REF} && \
+    git checkout FETCH_HEAD
 
 WORKDIR /tmp/llama-cpp-build
 
