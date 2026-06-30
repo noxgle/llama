@@ -16,15 +16,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Clone pinned llama.cpp reference (tag, branch, or commit hash)
-RUN git init /tmp/llama-cpp-build && \
-    cd /tmp/llama-cpp-build && \
-    git remote add origin ${LLAMA_REPO} && \
-    git fetch --depth 1 origin ${LLAMA_REF} && \
-    git checkout FETCH_HEAD
+# Note: uses HTTP archive to support commit hashes (git fetch --depth 1 doesn't work for arbitrary hashes on GitHub)
+RUN mkdir -p /tmp/llama-cpp-build && \
+    curl -L "${LLAMA_REPO%.git}/archive/${LLAMA_REF}.tar.gz" | \
+    tar -xz --strip-components=1 -C /tmp/llama-cpp-build
 
 WORKDIR /tmp/llama-cpp-build
 
-RUN git rev-parse --short HEAD
+# Extract short commit hash from the source (embedded by cmake during build)
+RUN echo "${LLAMA_REF}" | cut -c1-9
 
 # Build llama-server with CUDA + curl support
 # Set up CUDA driver stub for linking (actual driver comes from host at runtime)
