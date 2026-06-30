@@ -8,7 +8,7 @@ services:
         LLAMA_REPO: "${LLAMA_REPO:-https://github.com/ggml-org/llama.cpp.git}"
         LLAMA_REF: "${LLAMA_REF:-master}"
         BUILD_JOBS: "6"
-    image: ghcr.io/noxgle/llama-server:latest
+    image: ghcr.io/noxgle/llama-server:stable-8c146a8-v1
     ports:
       - "${PORT:-8089}:${PORT:-8089}"
     volumes:
