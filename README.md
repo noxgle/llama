@@ -1,4 +1,4 @@
-# Llama.cpp Server
+# Llama.cpp Server with Docker with 6GB VRAM
 
 ![NVIDIA RTX A2000 6GB](rtx_a2000.jpg)
 
