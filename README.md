@@ -150,25 +150,29 @@ ls -l /dev/nvidia0 /dev/nvidiactl /dev/nvidia-uvm
 pct status 1004
 ```
 
-### LXC Configuration (VMID 1004)
+### LXC Configuration
 
-- VMID: `1004`
-- LXC IP: `192.168.200.38`
-- Project path: `/opt/llama`
+- Features: `nesting=1` (required for Docker in LXC), `fuse=1` (for GGUF symlinks)
+- Disk: **80 GB** (recommended; Q5 model 26 GB + KV cache + buffer)
+- RAM: **30 GB** (allocated to container)
+- CPU: **4 cores** (match with `THREADS=4` in configs)
 - Autostart:
   - `onboot: 1`
   - `startup: order=5,up=20`
 
-Required GPU passthrough entries (`pct config 1004`):
+Required GPU passthrough entries (`pct config <VMID>`):
 
 ```text
 lxc.cgroup2.devices.allow: c 195:* rwm
+lxc.cgroup2.devices.allow: c 236:* rwm
 lxc.cgroup2.devices.allow: c 510:* rwm
+lxc.cgroup2.devices.allow: c 511:* rwm
 lxc.mount.entry: /dev/nvidia0 dev/nvidia0 none bind,optional,create=file
 lxc.mount.entry: /dev/nvidiactl dev/nvidiactl none bind,optional,create=file
 lxc.mount.entry: /dev/nvidia-uvm dev/nvidia-uvm none bind,optional,create=file
 lxc.mount.entry: /dev/nvidia-uvm-tools dev/nvidia-uvm-tools none bind,optional,create=file
 lxc.mount.entry: /dev/nvidia-caps dev/nvidia-caps none bind,optional,create=dir
+lxc.prlimit.memlock: unlimited
 ```
 
 ### Boot Sequence and Recovery Logic
