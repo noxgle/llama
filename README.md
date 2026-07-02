@@ -91,6 +91,22 @@ The script installs Docker, `nvidia-container-toolkit`, pulls the server image, 
 
 > **Minimum disk:** 70 GB (80 GB for Q5 variant). For Proxmox LXC: GPU passthrough required on host.
 
+### Stable version (production)
+
+Pin to a specific release tag instead of `master`:
+
+```bash
+# Current stable (stable-8c146a8-v1)
+bash <(curl -fsSL https://raw.githubusercontent.com/noxgle/llama/stable-8c146a8-v1/deploy/install-llama.sh) qwen
+bash <(curl -fsSL https://raw.githubusercontent.com/noxgle/llama/stable-8c146a8-v1/deploy/install-llama.sh) gemma4
+bash <(curl -fsSL https://raw.githubusercontent.com/noxgle/llama/stable-8c146a8-v1/deploy/install-llama.sh) qwen-q5
+
+# Previous stable (stable-b9770-v1, rollback)
+bash <(curl -fsSL https://raw.githubusercontent.com/noxgle/llama/stable-b9770-v1/deploy/install-llama.sh) qwen
+bash <(curl -fsSL https://raw.githubusercontent.com/noxgle/llama/stable-b9770-v1/deploy/install-llama.sh) gemma4
+bash <(curl -fsSL https://raw.githubusercontent.com/noxgle/llama/stable-b9770-v1/deploy/install-llama.sh) qwen-q5
+```
+
 ### Verify
 
 ```bash
