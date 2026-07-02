@@ -78,13 +78,13 @@ Host pre-requisites: NVIDIA drivers, GPU passthrough (for Proxmox LXC), kernel m
 
 ```bash
 # Qwen3.6 (production default, ~33 tok/s)
-bash <(curl -fsSL https://raw.githubusercontent.com/noxgle/llama/stable-8c146a8-v1/deploy/install-llama.sh) qwen
+bash <(curl -fsSL https://raw.githubusercontent.com/noxgle/llama/master/deploy/install-llama.sh) qwen
 
 # Gemma4 26B (alternative, ~27 tok/s)
-bash <(curl -fsSL https://raw.githubusercontent.com/noxgle/llama/stable-8c146a8-v1/deploy/install-llama.sh) gemma4
+bash <(curl -fsSL https://raw.githubusercontent.com/noxgle/llama/master/deploy/install-llama.sh) gemma4
 
 # Qwen3.6 Q5_K_M (higher quality, ~30 tok/s, needs ≥35 GB free)
-bash <(curl -fsSL https://raw.githubusercontent.com/noxgle/llama/stable-8c146a8-v1/deploy/install-llama.sh) qwen-q5
+bash <(curl -fsSL https://raw.githubusercontent.com/noxgle/llama/master/deploy/install-llama.sh) qwen-q5
 ```
 
 The script installs Docker, `nvidia-container-toolkit`, pulls the server image, downloads model weights, and starts the server on **port 8089** with `restart: unless-stopped`.

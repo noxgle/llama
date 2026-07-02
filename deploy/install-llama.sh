@@ -5,7 +5,7 @@
 # Usage:
 #   bash deploy/install-llama.sh qwen          # from repo checkout
 #   bash deploy/install-llama.sh qwen-q5       # Q5_K_M variant
-#   bash <(curl -fsSL https://raw.githubusercontent.com/noxgle/llama/stable-8c146a8-v1/deploy/install-llama.sh) qwen
+#   bash <(curl -fsSL https://raw.githubusercontent.com/noxgle/llama/master/deploy/install-llama.sh) qwen
 #
 # Prerequisites:
 #   - Debian 12+ or Ubuntu 22.04+ (fresh install recommended)
