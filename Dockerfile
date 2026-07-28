@@ -38,7 +38,7 @@ RUN cmake -B build \
         -DLLAMA_CUDA=ON \
         -DGGML_CUDA_NCCL=OFF \
         -DLLAMA_OPENSSL=ON \
-        -DLLAMA_NATIVE=${LLAMA_NATIVE} \
+        -DGGML_NATIVE=${LLAMA_NATIVE} \
         -DCMAKE_EXE_LINKER_FLAGS="-L/usr/local/cuda/lib64/stubs -Wl,-rpath,/usr/local/cuda/lib64" \
     && cmake --build build --config Release -j${BUILD_JOBS} -- llama-server
 
