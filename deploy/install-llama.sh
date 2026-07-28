@@ -39,6 +39,18 @@ set -euo pipefail
 # Configuration
 # ==================================================================
 MODEL="${1:-}"
+BUILD_LOCAL=false
+
+case "${2:-}" in
+  --build-local) BUILD_LOCAL=true ;;
+  "")
+    # No second argument — use default (pull from GHCR)
+    ;;
+  *)
+    echo "Unknown option: $2" >&2
+    exit 1
+    ;;
+esac
 
 # Overridable via environment
 REPO_URL="${LLAMA_REPO:-https://github.com/noxgle/llama.git}"
@@ -50,15 +62,20 @@ case "$MODEL" in
   qwen|gemma4|qwen-q5) ;;
   *)
     cat >&2 <<EOF
-Usage: $(basename "$0") {qwen|gemma4|qwen-q5}
+Usage: $(basename "$0") {qwen|gemma4|qwen-q5} [--build-local]
 
 Installs Docker, nvidia-container-toolkit, and a llama.cpp server
 with the selected model, configured for autostart on port 8089.
 
+Options:
+  --build-local    Build Docker image locally instead of pulling from GHCR
+                   (takes 30-90 min but uses -march=native for best CPU perf)
+
 Examples:
-  bash $(basename "$0") qwen        # Qwen3.6 Q4_K_M (production, ~31 tok/s)
-  bash $(basename "$0") gemma4      # Gemma4 26B (alternative, ~27 tok/s)
-  bash $(basename "$0") qwen-q5     # Qwen3.6 Q5_K_M (higher quality, ~28 tok/s)
+  bash $(basename "$0") qwen              # Qwen3.6 Q4_K_M (pull from GHCR)
+  bash $(basename "$0") qwen --build-local # Qwen3.6 (local build, -march=native)
+  bash $(basename "$0") gemma4            # Gemma4 26B (alternative)
+  bash $(basename "$0") qwen-q5           # Qwen3.6 Q5_K_M (higher quality)
 EOF
     exit 1
     ;;
@@ -96,6 +113,7 @@ info "Target:  $(. /etc/os-release && echo "$ID $VERSION_CODENAME ($VERSION_ID)"
 info "Model:   $MODEL"
 info "Repo:    $REPO_URL"
 info "Image:   $LLAMA_IMAGE"
+info "Build:   $([ "$BUILD_LOCAL" = true ] && echo "local (-march=native)" || echo "pull from GHCR")"
 info "Install: $INSTALL_DIR"
 
 # ==================================================================
@@ -243,19 +261,29 @@ info "Volume llama_hf-cache ready"
 info "Directory $INSTALL_DIR/models ready"
 
 # ==================================================================
-# 6. Pull llama-server image from GHCR
+# 6. Obtain llama-server image (pull from GHCR or build locally)
 # ==================================================================
-heading "Step 6/10 — Pull llama-server image"
+heading "Step 6/10 — Obtain llama-server image"
 
-info "Pulling $LLAMA_IMAGE ..."
-if docker pull "$LLAMA_IMAGE" 2>&1; then
-  info "Image pulled from registry"
-else
-  warn "Registry pull failed — trying to load locally cached image..."
-  if docker images --format "{{.Repository}}:{{.Tag}}" | grep -qF "$LLAMA_IMAGE"; then
-    info "Found locally cached $LLAMA_IMAGE"
+if [ "$BUILD_LOCAL" = true ]; then
+  info "Building from Dockerfile (LLAMA_REF=b10068, -march=native)..."
+  info "This will take 30-90 min depending on CPU."
+  cd "$INSTALL_DIR"
+  if docker compose build 2>&1; then
+    info "Local build complete"
   else
-    cat >&2 <<EOFFALLBACK
+    die "Local build failed — check Docker build logs"
+  fi
+else
+  info "Pulling $LLAMA_IMAGE ..."
+  if docker pull "$LLAMA_IMAGE" 2>&1; then
+    info "Image pulled from registry"
+  else
+    warn "Registry pull failed — trying to load locally cached image..."
+    if docker images --format "{{.Repository}}:{{.Tag}}" | grep -qF "$LLAMA_IMAGE"; then
+      info "Found locally cached $LLAMA_IMAGE"
+    else
+      cat >&2 <<EOFFALLBACK
 
   ${RED}CANNOT OBTAIN SERVER IMAGE${NC}
   docker pull of $LLAMA_IMAGE failed and no local image found.
@@ -263,7 +291,8 @@ else
   The image is public on ghcr.io — verify network connectivity and that
   the registry is reachable, then re-run this script.
 EOFFALLBACK
-    exit 1
+      exit 1
+    fi
   fi
 fi
 
@@ -276,6 +305,10 @@ case "$MODEL" in
   qwen-q5) MODEL_MIN_GB=35 ;;  # Q5_K_M ~26 GB + download + buffer
   *)       MODEL_MIN_GB=25 ;;  # Q4_K_M ~22 GB, Gemma4 Q4_K_M ~16 GB
 esac
+if [ "$BUILD_LOCAL" = true ]; then
+  MODEL_MIN_GB=$((MODEL_MIN_GB + 15))
+  info "Local build adds ~15 GB for CUDA toolkit + build cache (total min: ${MODEL_MIN_GB}G)"
+fi
 AVAIL_GB=$(df -BG / | awk 'NR==2{gsub(/G/,"",$4); print $4+0}')
 if [ "$AVAIL_GB" -lt "$MODEL_MIN_GB" ]; then
   warn "Only ${AVAIL_GB}G available on /, model needs ~${MODEL_MIN_GB}G for download + cache"
@@ -398,6 +431,7 @@ echo ""
 info "Model:     $MODEL"
 info "Port:      8089"
 info "Image:     $LLAMA_IMAGE"
+info "Build:     $([ "$BUILD_LOCAL" = true ] && echo "local (-march=native)" || echo "pre-built (GHCR)")"
 info "Directory: $INSTALL_DIR"
 echo ""
 info "Manage:"
