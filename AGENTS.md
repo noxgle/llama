@@ -40,7 +40,7 @@ This file is a critical provisioning script shared across all deployments. Chang
 - **Config:** `configs/qwen3.6-35ba3b-mtp-unsloth.env`
 - **Model:** `unsloth/Qwen3.6-35B-A3B-MTP-GGUF:UD-Q4_K_M` (HF)
 - **Key values:** `CTX=143360` | `NGLAYERS=999` | `BATCH=3072`/`UBATCH=1536` | `CACHE_RAM=4096` | `CACHE_REUSE=256` | `CTX_CHECKPOINTS=8` | `CACHE_TYPE_K/V=q8_0` | `SPEC_TYPE=draft-mtp` | `SPEC_DRAFT_N_MAX=1`
-- **llama.cpp:** commit `8c146a8` (master, 2026-06-29 — beyond b9770). Previous build: `75ad0b2` (b9770)
+- **llama.cpp:** commit `b10068` (master, 2026-06-29 — beyond b9770). Previous build: `8c146a8`
 - **Baseline throughput:** ~33 tok/s (short, q8_0 KV), ~30 tok/s (44K prompt, prefill at **680 t/s** — **+35%** vs previous 505 t/s)
 
 ### New flags added (2026-06-28)

@@ -96,11 +96,11 @@ The script installs Docker, `nvidia-container-toolkit`, pulls the server image, 
 Pin to a specific release tag instead of `master`:
 
 ```bash
-# Current stable (stable-8c146a8-v1)
-bash <(curl -fsSL https://raw.githubusercontent.com/noxgle/llama/stable-8c146a8-v1/deploy/install-llama.sh) qwen
-bash <(curl -fsSL https://raw.githubusercontent.com/noxgle/llama/stable-8c146a8-v1/deploy/install-llama.sh) gemma4
-bash <(curl -fsSL https://raw.githubusercontent.com/noxgle/llama/stable-8c146a8-v1/deploy/install-llama.sh) qwen-q5
+# Current stable (stable-b10068-v1)
 
+bash <(curl -fsSL https://raw.githubusercontent.com/noxgle/llama/stable-b10068-v1/deploy/install-llama.sh) qwen
+bash <(curl -fsSL https://raw.githubusercontent.com/noxgle/llama/stable-b10068-v1/deploy/install-llama.sh) gemma4
+bash <(curl -fsSL https://raw.githubusercontent.com/noxgle/llama/stable-b10068-v1/deploy/install-llama.sh) qwen-q5
 # Previous stable (stable-b9770-v1, rollback)
 bash <(curl -fsSL https://raw.githubusercontent.com/noxgle/llama/stable-b9770-v1/deploy/install-llama.sh) qwen
 bash <(curl -fsSL https://raw.githubusercontent.com/noxgle/llama/stable-b9770-v1/deploy/install-llama.sh) gemma4
