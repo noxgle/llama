@@ -7,6 +7,7 @@ FROM nvidia/cuda:12.4.0-devel-ubuntu22.04 AS builder
 
 ARG LLAMA_REPO=https://github.com/ggml-org/llama.cpp.git
 ARG LLAMA_REF=master
+ARG LLAMA_NATIVE=OFF
 ARG BUILD_JOBS=6
 
 ENV DEBIAN_FRONTEND=noninteractive
@@ -37,7 +38,7 @@ RUN cmake -B build \
         -DLLAMA_CUDA=ON \
         -DGGML_CUDA_NCCL=OFF \
         -DLLAMA_OPENSSL=ON \
-        -DLLAMA_NATIVE=OFF \
+        -DLLAMA_NATIVE=${LLAMA_NATIVE} \
         -DCMAKE_EXE_LINKER_FLAGS="-L/usr/local/cuda/lib64/stubs -Wl,-rpath,/usr/local/cuda/lib64" \
     && cmake --build build --config Release -j${BUILD_JOBS} -- llama-server
 

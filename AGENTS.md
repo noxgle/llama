@@ -100,6 +100,7 @@ curl -s http://192.168.200.38:8089/health
 - `-DGGML_CUDA_NCCL=OFF` — single GPU, no libnccl.so.2 dependency.
 - **Image:** `ghcr.io/noxgle/llama-server:latest` (public, no auth to pull).
 - CI/CD: `.github/workflows/build.yml` — push to `master` or tag `b*`. Self-hosted runner via `SELF_HOSTED_RUNNER=self-hosted` repo variable.
+- **Build flags:** Dockerfile uses `ARG LLAMA_NATIVE=OFF` (configurable). CI pulls pre-built image (LLAMA_NATIVE=OFF, no AVX2 in generated code, relies on GGML runtime dispatch). `install-llama.sh --build-local` passes `LLAMA_NATIVE=ON` → `-march=native` on target CPU. **Do NOT use `-DCMAKE_CXX_FLAGS="-march=x86-64-v3"`** — causes SIGILL on Ryzen 5600X despite CPU feature support (root cause unclear).
 - Do not modify `Dockerfile` unless explicitly asked.
 
 ## Provisioning gotchas (install-llama.sh)

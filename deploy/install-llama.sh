@@ -266,10 +266,10 @@ info "Directory $INSTALL_DIR/models ready"
 heading "Step 6/10 — Obtain llama-server image"
 
 if [ "$BUILD_LOCAL" = true ]; then
-  info "Building from Dockerfile (LLAMA_REF=b10068, -march=native)..."
+  info "Building from Dockerfile (LLAMA_REF=b10068, LLAMA_NATIVE=ON)..."
   info "This will take 30-90 min depending on CPU."
   cd "$INSTALL_DIR"
-  if docker compose build 2>&1; then
+  if LLAMA_NATIVE=ON docker compose build 2>&1; then
     info "Local build complete"
   else
     die "Local build failed — check Docker build logs"
