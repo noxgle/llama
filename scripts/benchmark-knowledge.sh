@@ -29,7 +29,7 @@ MODEL = os.environ.get("MODEL", "gemma4")
 TIMESTAMP = datetime.now().strftime("%Y%m%d-%H%M%S")
 OUT_TXT = f"benchmark-kb-{TIMESTAMP}.txt"
 OUT_JSON = f"benchmark-kb-{TIMESTAMP}.json"
-TIMEOUT = 300  # 5 minutes per request (unlimited tokens)
+TIMEOUT = 600  # 10 minutes per request
 
 # ---- tasks ----
 TASKS = [
@@ -197,12 +197,10 @@ def run_curl(payload: str) -> str:
             )
         except Exception as e:
             return json.dumps({"error": f"failed to write remote payload: {e}"})
+        url = f"http://localhost:{PORT}/v1/chat/completions"
         cmd = [
             "ssh", HOST,
-            "curl", "-sS", "--max-time", str(TIMEOUT),
-            f"http://localhost:{PORT}/v1/chat/completions",
-            "-H", '"Content-Type: application/json"',
-            "-d", f'"@{remote_payload}"',
+            f"curl -sS --max-time {TIMEOUT} '{url}' -H 'Content-Type: application/json' -d '@{remote_payload}'",
         ]
     else:
         # Local: curl directly

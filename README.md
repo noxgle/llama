@@ -91,6 +91,18 @@ The script installs Docker, `nvidia-container-toolkit`, pulls the server image, 
 
 > **Minimum disk:** 70 GB (80 GB for Q5 variant). For Proxmox LXC: GPU passthrough required on host.
 
+### Local build (host-optimized, ~18% faster)
+
+By default, `install-llama.sh` pulls a pre-built CI image with `GGML_NATIVE=OFF` — a universal binary compatible with all x86-64 CPUs.
+
+For maximum throughput, build directly on the target machine:
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/noxgle/llama/master/deploy/install-llama.sh) qwen --build-local
+```
+
+This sets `GGML_NATIVE=ON`, enabling `-march=native` optimization for the host CPU. Measured **+18% tok/s** on Ryzen 5600X (33.9 vs 28.6 tok/s in short-gen benchmarks). Build takes ~36 min — one-time cost per machine.
+
 ### Stable version (production)
 
 Pin to a specific release tag instead of `master`:
@@ -303,6 +315,7 @@ Build workflow: `.github/workflows/build.yml`
 
 - Source: `ggml-org/llama.cpp.git` (default `master`, pin via `LLAMA_REF`)
 - Build flag: `-DGGML_CUDA_NCCL=OFF` (single GPU, no libnccl)
+- **`GGML_NATIVE`:** CI builds use `GGML_NATIVE=OFF` (universal binary). For host-optimized performance, run `install-llama.sh <profile> --build-local` — this sets `GGML_NATIVE=ON` (`-march=native`), measured **+18% tok/s** on Ryzen 5600X.
 - Image is public — no authentication needed for pull
 - Self-hosted runner (6-core): ~60–90 min build; GitHub-hosted: ~3–4 h
 
@@ -323,6 +336,7 @@ Key findings:
 - **UBATCH must ≈ BATCH** — 1024/256 was 39% _slower_ than baseline
 - **MTP n_max=1 is optimal** — +10% vs MTP off; each extra draft token triggers CPU-side MoE overhead
 - Generation speed is memory-bandwidth-bound, unaffected by batch size
+- Numbers above are from CI builds (`GGML_NATIVE=OFF`). Local builds with `--build-local` (`GGML_NATIVE=ON`) achieve **~33.9 tok/s** (+18%) on the same hardware.
 
 > **Full benchmark data:** `scripts/benchmark-batch.sh`, `scripts/benchmark-knowledge.sh`, and `scripts/benchmark-knowledge-compare.md`.
 

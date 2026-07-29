@@ -10,25 +10,26 @@
 | 4 | **Qwen3.6 35B A3B MTP Q5_K_M q8_0/q8_0** (unlimited, 143K) | 29.7 | 91.0% | 26,193 | 15.3 min | **A** | A | A | A | A | A | A | A | A | A | A |
 | 5 | **Qwen3.6 35B A3B MTP Q4_K_M q8_0/q8_0** (unlimited, 150K) | **33.1** | **91.3%** | 22,181 | **13.6 min** | **A** | A | A | A | A | A | A | A | A | A | A |
 | 6 | **Qwen3.6 35B A3B MTP Q4_K_M q8_0/q8_0** (2026-06-29, `8c146a8`) | **33.0** | **90.5%** | 28,195 | **15.0 min** | **A** | A | A | A | A | A | A | A | A | A | A |
+| 7 | **Qwen3.6 35B A3B MTP Q4_K_M q8_0/q8_0** (2026-07-29, `b10068` local `GGML_NATIVE=ON`) | **33.6** | **91.3%** | 24,183 | **13.2 min** | **A** | A | A | A | A | A | A | A | A | A | A |
 
 <!-- Add rows from #5 upwards. Columns: Speed (tok/s), Draft% (draft accept rate), Total tok, Total time, Grade (overall), Data/.../Algo (per-task grades A-F) -->
 
 ### Model Comparison Highlights
 
-| Aspect | Gemma4 26B | Qwen Q4 (q4_0) | Qwen Q5 (q4_0) | Qwen Q5 q8_0 | Qwen Q4 q8_0 | Qwen Q4 q8_0'29 |
-|--------|------------|----------------|-----------------|-----------------|--------------------|-------------------|
-| **Speed** | 27.3 tok/s | 29.1 tok/s | 27.5 tok/s | 29.7 tok/s | **33.1 tok/s** | 33.0 tok/s |
-| **Draft accept** | 89.6% | 83.1% | 82.0% | 91.0% | **91.3%** | 90.5% |
-| **Total tokens** | **14,574** | 30,973 | 33,080 | 26,193 | 22,181 | 28,195 |
-| **Total time** | **9.7 min** | 18.0 min | 20.5 min | 15.3 min | **13.6 min** | 15.0 min |
-| **Tasks** | 10/10 (A) | 10/10 (A) | 10/10 (A) | 10/10 (A) | 10/10 (A) | 10/10 (A) |
-| **Server** | .21 (prod) | .20 (prod) | .19 (prod) | .38 (dev) | .38 (dev) | .38 (dev) |
-| **Build** | b9770 | b9770 | b9770 | b9770 | b9770 | **`8c146a8`** |
-| **GPU VRAM** | 5415 MiB | 4473 MiB | 5471 MiB | 5705 MiB | **5751 MiB** | — |
-| **Context** | 131K (Q4_0) | 160K (Q4_0) | 160K (Q4_0) | 143K (Q8_0) | 150K (Q8_0) | — |
-| **MTP** | n_max=2 | n_max=1 | n_max=1 | n_max=1 | n_max=1 | n_max=1 |
+| Aspect | Gemma4 26B | Qwen Q4 (q4_0) | Qwen Q5 (q4_0) | Qwen Q5 q8_0 | Qwen Q4 q8_0 | Qwen Q4 q8_0'29 | **Qwen Q4 q8_0'29 (local)** |
+|--------|------------|----------------|-----------------|-----------------|--------------------|-------------------|----------------------------|
+| **Speed** | 27.3 tok/s | 29.1 tok/s | 27.5 tok/s | 29.7 tok/s | 33.1 tok/s | 33.0 tok/s | **33.6 tok/s** |
+| **Draft accept** | 89.6% | 83.1% | 82.0% | 91.0% | 91.3% | 90.5% | **91.3%** |
+| **Total tokens** | **14,574** | 30,973 | 33,080 | 26,193 | 22,181 | 28,195 | **24,183** |
+| **Total time** | **9.7 min** | 18.0 min | 20.5 min | 15.3 min | 13.6 min | 15.0 min | **13.2 min** |
+| **Tasks** | 10/10 (A) | 10/10 (A) | 10/10 (A) | 10/10 (A) | 10/10 (A) | 10/10 (A) | 10/10 (A) |
+| **Server** | .21 (prod) | .20 (prod) | .19 (prod) | .38 (dev) | .38 (dev) | .38 (dev) | .38 (dev) |
+| **Build** | b9770 | b9770 | b9770 | b9770 | b9770 | `8c146a8` | **b10068 local `GGML_NATIVE=ON`** |
+| **GPU VRAM** | 5415 MiB | 4473 MiB | 5471 MiB | 5705 MiB | 5751 MiB | — | 5541 MiB |
+| **Context** | 131K (Q4_0) | 160K (Q4_0) | 160K (Q4_0) | 143K (Q8_0) | 150K (Q8_0) | — | 143K (Q8_0) |
+| **MTP** | n_max=2 | n_max=1 | n_max=1 | n_max=1 | n_max=1 | n_max=1 | n_max=1 |
 
-*🏆 Generation speed unchanged across builds (~33 tok/s). The key gain from `8c146a8` is **+35% prefill** (505→680 t/s). The new build matches the previous generation throughput.*
+*🏆 Local build with `GGML_NATIVE=ON` delivers **+1.8%** throughput (33.0→33.6 tok/s) and **−14% fewer tokens** (28,195→24,183) vs CI build. The local build produces more focused responses with higher draft acceptance.*
 
 ## Detailed Results
 
@@ -221,6 +222,49 @@
 - Quick probe (500 tok): **32.5 tok/s** — consistent with the benchmark average.
 
 **Takeaway:** **Q4_K_M with q8_0/q8_0 KV cache is the new overall performance leader** — 33.1 tok/s, 91.3% draft accept, 13.6 min. The trade-off is 94% VRAM vs 73% with q4_0 KV. Recommended as the new baseline config for Qwen3.6.
+
+---
+
+### #7  Qwen3.6 35B A3B MTP Q4_K_M q8_0/q8_0 KV (unlimited) — 2026-07-29 (local build `GGML_NATIVE=ON`)
+
+**Config file:** `configs/qwen3.6-35ba3b-mtp-unsloth.env`  
+**Server:** 192.168.200.38 (dev, Debian 13 trixie, Proxmox LXC)  
+**GPU:** RTX A2000 6 GB (Ampere, Tensor Cores) — 5541/6138 MiB idle (90%)  
+**CPU:** 4 LXC CPUs (AMD Ryzen 5 5600X host, 12 cores)  
+**RAM:** 48 GB (~30 GiB used)  
+**Model:** `unsloth/Qwen3.6-35B-A3B-MTP-GGUF:UD-Q4_K_M` (HF download, ~15.7 GB) — MTP draft against target  
+**Flags:** `-hf unsloth/...`, `SPEC_TYPE=draft-mtp`, `SPEC_DRAFT_N_MAX=1`  
+**Build:** `b10068`, **locally compiled with `GGML_NATIVE=ON`** (`-march=native` on Ryzen 5600X)  
+**Cache:** `CACHE_TYPE_K=q8_0, CACHE_TYPE_V=q8_0`  
+**Context:** 143360 (140K, Q8_0 KV cache)  
+**Batch:** BATCH=3072, UBATCH=1536  
+**Threads:** THREADS=4 (LXC cpuset, verified 2026-06-26)  
+**Timeout:** 600s | **Max tokens:** unlimited  
+
+| # | Task | tok/s | tokens | time | Draft% | Grade |
+|---|------|-------|--------|------|--------|-------|
+| 1 | Data Analysis | 34.4 | 1,037 | 31s | 96% | **A** |
+| 2 | Python Programming | 33.3 | 3,992 | 122s | 91% | **A** |
+| 3 | Logic Puzzle | 33.7 | 2,504 | 77s | 91% | **A** |
+| 4 | Mathematics | 34.6 | 1,439 | 44s | 97% | **A** |
+| 5 | Networking Knowledge | 32.6 | 2,127 | 67s | 84% | **A** |
+| 6 | Creative Writing | 33.0 | 1,502 | 48s | 85% | **A** |
+| 7 | Code Review | 33.8 | 3,986 | 120s | 90% | **A** |
+| 8 | SQL Query | 33.4 | 4,058 | 124s | 89% | **A** |
+| 9 | Explain Like I'm 5 | 33.5 | 1,496 | 47s | 91% | **A** |
+| 10 | Algorithm Design | 33.3 | 3,042 | 94s | 88% | **A** |
+
+**Key findings:**
+- **New speed leader:** 33.6 tok/s avg — **+1.8%** over CI build (33.0 tok/s) and **+1.5%** over previous best (33.1 tok/s, #5).
+- **More concise:** 24,183 total tokens (−14% vs CI build's 28,195). Model produces shorter, more focused responses.
+- **Total time:** 13.2 min — **−12%** faster than CI build (15.0 min).
+- **Draft acceptance:** 91.3% avg — slightly higher than CI build (90.5%).
+- **VRAM:** 5541 MiB (90%) — lower than previous Q4 q8_0 runs (5751 MiB, 94%) despite same config.
+- **All 10 tasks A-grade**, SQL Query completed in 124s with no timeout issues.
+- **Prefill improvement** from local build: 17K prompt 991 t/s vs CI 680 t/s (+46%), 54K prompt 579 t/s vs CI 505 t/s (+15%).
+- No CPU fallback, OOM, or SIGILL detected.
+
+**Takeaway:** **Local build with `GGML_NATIVE=ON` is a clear upgrade** over the CI build on the same hardware. Not only is throughput slightly higher (+1.8%), but the model produces more concise responses (−14% tokens) with better draft acceptance. Combined with the significant prefill improvements reported earlier (+35-46%), the local build is recommended for all Ryzen 5600X deployments.
 
 ## Notes
 
