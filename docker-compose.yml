@@ -78,6 +78,11 @@ services:
       # Reasoning/thinking: off for fast camera loop, auto for others
       - "--reasoning"
       - "${REASONING:-auto}"
+      # Batch limit for image encoding (0 = no limit / model default)
+      - "--mtmd-batch-max-tokens"
+      - "${MTMD_BATCH_MAX_TOKENS:-0}"
+      # Bypass host buffer, freeing more VRAM for GPU compute
+      - "${NO_HOST:-}"
       - "--cache-ram"
       - "${CACHE_RAM:-4096}"
       - "--cache-reuse"
