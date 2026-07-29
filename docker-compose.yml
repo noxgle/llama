@@ -70,6 +70,14 @@ services:
       # Default (unset): --no-mmproj (disable multimodal, backwards-compatible)
       - "${MMPROJ_FLAG:---no-mmproj}"
       - "${MMPROJ:-}"
+      # Image token limits for multimodal (low = fast encoding, less detail)
+      - "--image-min-tokens"
+      - "${IMAGE_MIN_TOKENS:-66}"
+      - "--image-max-tokens"
+      - "${IMAGE_MAX_TOKENS:-256}"
+      # Reasoning/thinking: off for fast camera loop, auto for others
+      - "--reasoning"
+      - "${REASONING:-auto}"
       - "--cache-ram"
       - "${CACHE_RAM:-4096}"
       - "--cache-reuse"
