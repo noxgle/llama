@@ -13,8 +13,8 @@ HOST="${HOST:-root@192.168.200.38}"
 IMAGE="ghcr.io/noxgle/llama-server:latest"
 CONFIG_DIR="/opt/llama/configs"
 
-SSH="sshpass -p '123456' ssh $HOST"
-SCP="sshpass -p '123456' scp"
+SSH="sshpass -p 123456 ssh $HOST"
+SCP="sshpass -p 123456 scp"
 
 RESULTS_DIR="/tmp/mtp-benchmark-results"
 mkdir -p "$RESULTS_DIR"
