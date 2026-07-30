@@ -1,12 +1,11 @@
 #!/usr/bin/env bash
-"""MTP / speculative decoding parameter benchmark runner.
-
-Usage:
-  HOST=root@192.168.200.38 bash scripts/benchmark-draft-mtp.sh
-
-Runs a series of tests varying SPEC_DRAFT_N_MAX and MTP on/off,
-compares generation speed via a 500-token curl probe.
-"""
+# MTP / speculative decoding parameter benchmark runner.
+#
+# Usage:
+#   HOST=root@192.168.200.38 bash scripts/benchmark-draft-mtp.sh
+#
+# Runs a series of tests varying SPEC_DRAFT_N_MAX and MTP on/off,
+# compares generation speed via a 500-token curl probe.
 
 set -euo pipefail
 
