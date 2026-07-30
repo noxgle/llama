@@ -5,8 +5,8 @@ After=docker.service
 [Service]
 Type=oneshot
 User=root
-WorkingDirectory=/root/llama
-ExecStart=/root/llama/scripts/gpu-watchdog.sh
+WorkingDirectory=/opt/llama
+ExecStart=/opt/llama/scripts/gpu-watchdog.sh
 StandardOutput=journal
 StandardError=journal
 
