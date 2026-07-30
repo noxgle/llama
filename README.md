@@ -33,6 +33,7 @@ Three production models run in parallel on separate RTX A2000 machines, serving 
 - Flash Attention, q8_0 KV cache, context up to 160K tokens
 - Prompt cache in system RAM (`--cache-ram`)
 - Dynamic model switching via router (experimental)
+- Gemma 4 E2B vision — multimodal image detection (camera loop ~500 ms/cycle, ~85–95 tok/s)
 - GPU watchdog with self-heal (CPU fallback detection)
 - One-command provisioning (`install-llama.sh`)
 - CI/CD: GitHub Actions → GitHub Container Registry
@@ -139,6 +140,8 @@ curl http://<server-ip>:8089/v1/chat/completions \
 | **Qwen3.6 Q4\_K\_M** (default) | `configs/qwen3.6-35ba3b-mtp-unsloth.env` | `-hf unsloth/...:UD-Q4_K_M` | ~33 tok/s | ~5.2 GiB |
 | **Qwen3.6 Q5\_K\_M** | `configs/qwen3.6-35ba3b-mtp-unsloth-q5.env` | Local GGUF (symlink) | ~30 tok/s | ~5.3 GiB |
 | **Gemma4 26B Q4\_K\_M + MTP** | `configs/gemma4-26b-q4-k-m-mtp.env` | Local GGUF (symlink) + draft head | ~27 tok/s | ~5.4 GiB |
+| **Gemma 4 E2B Q4\_K\_M + vision + MTP** | `configs/gemma4-e2b-q4-k-m-mtp.env` | Local GGUF + mmproj + MTP draft | ~95 tok/s | ~4.4 GiB |
+| **Gemma 4 E2B FAST v2** (camera) | `configs/gemma4-e2b-q4-k-m-mtp-fast-v2.env` | Local GGUF + mmproj + MTP draft | ~500 ms/cycle | ~4.4 GiB |
 | **Gemma4 Q8\_K\_XL** (deprecated) | `configs/gemma4-26b-q8_0-mtp.env` | Local GGUF (symlink) + draft head | ~11 tok/s | ~4.0 GiB |
 
 ### Switching models
@@ -211,6 +214,50 @@ Models defined in [`configs/router-preset.ini`](configs/router-preset.ini). Rout
 
 ---
 
+## Gemma 4 E2B Vision (fast image detection)
+
+Gemma 4 E2B (5.1B total / 2.3B active) is a lightweight multimodal model configured for **low-latency image detection loops** — ideal for camera → describe → camera → describe workflows.
+
+### Available configs
+
+| Config | Use case | Cycle latency | Details |
+|--------|----------|:-------------:|---------|
+| `configs/gemma4-e2b-q4-k-m-mtp.env` | General vision + full 128K context | ~610 ms | IMAGE\_MAX\_TOKENS=256, BATCH=1024 |
+| `configs/gemma4-e2b-q4-k-m-mtp-fast-v2.env` | **Fast camera loop** (recommended) | **~500 ms** | IMAGE\_MAX\_TOKENS=128, UBATCH=512, NO\_HOST, REASONING=off |
+
+### Tuned for speed
+
+Key parameters optimized for the fast camera loop:
+
+- **`IMAGE_MAX_TOKENS=128`** — fewer tokens per image → faster encoding (∆ −100 ms/cycle)
+- **`REASONING=off`** — no internal thinking tokens in output
+- **`UBATCH=512`** — smaller GPU compute buffers, better fit for 6 GB VRAM
+- **`NO_HOST=--no-host`** — bypasses host buffer, freeing VRAM for GPU
+- **`POLL=0`** — CPU sleeps while waiting for GPU (no polling overhead)
+- **`MTP`** with `SPEC_DRAFT_N_MAX=3` — speculative decoding with dense-model-optimized draft length
+
+Throughput: **~85–95 tok/s** generation, **~200 ms** time-to-first-token (TTFT), **~500 ms** total per cycle.
+
+### Usage
+
+Send a camera frame as base64-encoded image via the OpenAI-compatible API:
+
+```bash
+curl -s http://localhost:8089/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "messages": [{"role": "user", "content": [
+      {"type": "image_url", "image_url": {"url": "data:image/jpeg;base64,<BASE64_FRAME>"}},
+      {"type": "text", "text": "Describe this image in 1 short sentence."}
+    ]}],
+    "max_tokens": 50
+  }'
+```
+
+The model returns a concise description without reasoning tokens — optimized for sub-second cycle times.
+
+---
+
 ## Operations
 
 ### `llama.sh` — model control script
@@ -279,6 +326,8 @@ systemctl daemon-reload && systemctl enable --now llama-gpu-watchdog.timer
 │   ├── qwen3.6-35ba3b-mtp-unsloth.env      (default)
 │   ├── qwen3.6-35ba3b-mtp-unsloth-q5.env   (Q5 variant)
 │   ├── gemma4-26b-q4-k-m-mtp.env            (Gemma4)
+│   ├── gemma4-e2b-q4-k-m-mtp.env            (Gemma 4 E2B vision + MTP)
+│   ├── gemma4-e2b-q4-k-m-mtp-fast-v2.env    (Gemma 4 E2B fast camera loop)
 │   ├── gemma4-26b-q8_0-mtp.env              (deprecated)
 │   ├── router-preset.ini                    (router models)
 │   └── router.env                           (router main config)
@@ -330,6 +379,7 @@ Build workflow: `.github/workflows/build.yml`
 | Qwen3.6 Q4\_K\_M, q8\_0 KV, MTP | 22.7 GB | **~33 tok/s** | **~680 t/s** | 5.2 GiB | 20 GiB |
 | Qwen3.6 Q5\_K\_M, q8\_0 KV, MTP | 26 GB | **~30 tok/s** | ~630 t/s | 5.3 GiB | 25 GiB |
 | Gemma4 Q4\_K\_M + MTP draft, q4\_0 KV | ~17 GB + 462 MB | **~27 tok/s** | — | 5.4 GiB | 15 GiB |
+| Gemma 4 E2B Q4\_K\_M + vision + MTP, q8\_0 KV | 3.0 GB + 940 MB + 94 MB | **~85–95 tok/s** | — | 4.4 GiB | 8 GiB |
 
 Key findings:
 - **BATCH=3072, UBATCH=1536** is optimal (Qwen3.6) — +88% prefill, −35% total time over baseline
