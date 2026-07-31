@@ -124,7 +124,9 @@ run_test() {
     args+=(--spec-draft-n-max "${spec_n:-3}")
 
     # Draft model (same as usual, no separate draft for Qwen)
-    args+=(--hf-repo-draft "")
+    # NOTE: --hf-repo-draft "" (empty arg) is rejected by llama.cpp >= b10213
+    # (invalid argument:); omitting the flag = no separate draft model, which
+    # is the production setup for Qwen (MTP draft via --spec-type draft-mtp).
     args+=(--gpu-layers-draft 0)
     args+=(--spec-draft-n-min 0)
     args+=(--spec-draft-p-min 0.0)
