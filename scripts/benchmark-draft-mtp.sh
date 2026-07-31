@@ -10,7 +10,7 @@
 set -euo pipefail
 
 HOST="${HOST:-root@192.168.200.38}"
-IMAGE="ghcr.io/noxgle/llama-server:latest"
+IMAGE="${IMAGE:-ghcr.io/noxgle/llama-server:latest}"
 CONFIG_DIR="/opt/llama/configs"
 
 SSH="sshpass -p 123456 ssh $HOST"
