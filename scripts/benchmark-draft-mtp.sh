@@ -133,10 +133,13 @@ run_test() {
   fi
 
   # Mount HF cache volume
-  # NOTE: use NVIDIA_VISIBLE_DEVICES=all, NOT --gpus all (Docker 26.1.5 post-reboot
-  # gotcha: --gpus all triggers CPU-serialized CUDA JIT → ~1.5 tok/s, see AGENTS.md)
+  # NOTE: need --runtime=nvidia (nvidia container toolkit) so libcuda.so.1 is
+  # mounted; NVIDIA_VISIBLE_DEVICES=all alone leaves libcuda missing.
+  # Do NOT use --gpus all (Docker 26.1.5 post-reboot gotcha: CPU-serialized
+  # CUDA JIT → ~1.5 tok/s, see AGENTS.md)
   local docker_args=(
     -d --name "$ctn_name"
+    --runtime=nvidia
     -e NVIDIA_VISIBLE_DEVICES=all
     --restart no
     -p 8089:8089
