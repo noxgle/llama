@@ -131,9 +131,11 @@ run_test() {
   fi
 
   # Mount HF cache volume
+  # NOTE: use NVIDIA_VISIBLE_DEVICES=all, NOT --gpus all (Docker 26.1.5 post-reboot
+  # gotcha: --gpus all triggers CPU-serialized CUDA JIT → ~1.5 tok/s, see AGENTS.md)
   local docker_args=(
     -d --name "$ctn_name"
-    --gpus all
+    -e NVIDIA_VISIBLE_DEVICES=all
     --restart no
     -p 8089:8089
     -v llama_hf-cache:/root/.cache/huggingface
