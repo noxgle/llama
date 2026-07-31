@@ -25,6 +25,13 @@ services:
             - driver: nvidia
               count: all
               capabilities: [gpu]
+    entrypoint:
+      # b10213+ rejects empty argv elements (e.g. unset NO_HOST/MMPROJ/DRAFT_MODEL
+      # default to "" in compose). Bash wrapper filters empty args, then execs.
+      - /bin/bash
+      - -c
+      - 'args=(); for a in "$@"; do [ -n "$a" ] && args+=("$a"); done; exec /usr/local/bin/llama-server "${args[@]}"'
+      - llama-server
     command:
       # -hf for HuggingFace repo:ref, OR -m /path/to/model.gguf (set MODEL_FLAG=-m)
       - "${MODEL_FLAG:--hf}"
