@@ -18,6 +18,10 @@ services:
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
       - GGML_CUDA_GRAPH_OPT=${GGML_CUDA_GRAPH_OPT:-1}
+      # Draft model via env (b10213+ rejects empty CLI values). Empty = unused.
+      # -md equivalent: LLAMA_ARG_SPEC_DRAFT_MODEL=<path>; --hf-repo-draft: LLAMA_ARG_SPEC_DRAFT_HF_REPO=<repo:quant>
+      - LLAMA_ARG_SPEC_DRAFT_MODEL=${DRAFT_MODEL:-}
+      - LLAMA_ARG_SPEC_DRAFT_HF_REPO=${DRAFT_HF_REPO:-}
     deploy:
       resources:
         reservations:
@@ -73,10 +77,9 @@ services:
       - "--no-mmap"
       - "--ctx-checkpoints"
       - "${CTX_CHECKPOINTS:-4}"
-      # Multimodal projector: --mmproj /path/to/mmproj.gguf (set MMPROJ_FLAG=--mmproj, MMPROJ=/path)
-      # Default (unset): --no-mmproj (disable multimodal, backwards-compatible)
-      - "${MMPROJ_FLAG:---no-mmproj}"
-      - "${MMPROJ:-}"
+      # Multimodal projector: set MMPROJ_FLAG=--mmproj, MMPROJ=/path/to/mmproj.gguf
+      # (merged into one argv element — b10213+ rejects trailing empty values)
+      - "${MMPROJ_FLAG:---no-mmproj}${MMPROJ:+=$MMPROJ}"
       # Image token limits for multimodal (low = fast encoding, less detail)
       - "--image-min-tokens"
       - "${IMAGE_MIN_TOKENS:-66}"
@@ -88,7 +91,7 @@ services:
       # Batch limit for image encoding (0 = no limit / model default)
       - "--mtmd-batch-max-tokens"
       - "${MTMD_BATCH_MAX_TOKENS:-0}"
-      # Bypass host buffer, freeing more VRAM for GPU compute
+      # Bypass host buffer, freeing more VRAM for GPU compute (empty = filtered by entrypoint)
       - "${NO_HOST:-}"
       - "--cache-ram"
       - "${CACHE_RAM:-4096}"
@@ -103,10 +106,8 @@ services:
       - "${SPEC_TYPE:-none}"
       - "--spec-draft-n-max"
       - "${SPEC_DRAFT_N_MAX:-3}"
-      # Gemma 4 draft model flags
-      # Use DRAFT_FLAG=-md for local file, or --hf-repo-draft for HF (default)
-      - "${DRAFT_FLAG:---hf-repo-draft}"
-      - "${DRAFT_MODEL:-}"
+      # Draft model: pass via env above (DRAFT_MODEL=<path> for local file,
+      # DRAFT_HF_REPO=<user>/<model>[:quant] for HF repo)
       - "--gpu-layers-draft"
       - "${GPU_LAYERS_DRAFT:-0}"
       - "--spec-draft-n-min"
