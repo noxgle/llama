@@ -52,7 +52,7 @@ User=root
 WorkingDirectory=${PROJECT_DIR}
 ExecStartPre=/bin/bash -c 'while [ ! -e /dev/nvidia-uvm ]; do sleep 1; done'
 ExecStartPre=/bin/bash -c 'while ! docker info >/dev/null 2>&1; do sleep 1; done'
-ExecStart=/usr/bin/docker compose down --remove-orphans && /usr/bin/docker compose up -d
+ExecStart=/bin/bash -c '/usr/bin/docker compose down --remove-orphans && /usr/bin/docker compose up -d'
 ExecStop=/usr/bin/docker compose down
 StandardOutput=journal
 StandardError=journal
@@ -77,7 +77,7 @@ Type=oneshot
 User=root
 WorkingDirectory=${PROJECT_DIR}
 ExecStartPre=/bin/sleep 90
-ExecStart=/usr/bin/docker compose down --remove-orphans && /usr/bin/docker compose up -d
+ExecStart=/bin/bash -c '/usr/bin/docker compose down --remove-orphans && /usr/bin/docker compose up -d'
 StandardOutput=journal
 StandardError=journal
 
