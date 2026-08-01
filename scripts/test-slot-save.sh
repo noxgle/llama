@@ -16,7 +16,7 @@ PORT="${PORT:-8089}"
 MODEL="${MODEL:-qwen3.6}"
 LLAMA_IMAGE="${LLAMA_IMAGE:-ghcr.io/noxgle/llama-server:b10213}"
 BASE_URL="http://$HOST:$PORT"
-SLOT_FILE="/slots/test-slot.bin"
+SLOT_FILE="test-slot.bin"
 
 if ! command -v jq &>/dev/null; then
   echo "ERROR: jq is required (apt install jq)"
@@ -300,13 +300,14 @@ do_request() {
 }
 
 slot_save() {
-  curl -s -X POST "$BASE_URL/slots/0/save" \
+  # llama.cpp >= b10213: POST /slots/{id}?action=save (query param), filename relative to --slot-save-path
+  curl -s -X POST "$BASE_URL/slots/0?action=save" \
     -H "Content-Type: application/json" \
     -d "{\"filename\":\"$SLOT_FILE\"}" > /dev/null 2>&1
 }
 
 slot_restore() {
-  curl -s -X POST "$BASE_URL/slots/0/restore" \
+  curl -s -X POST "$BASE_URL/slots/0?action=restore" \
     -H "Content-Type: application/json" \
     -d "{\"filename\":\"$SLOT_FILE\"}" > /dev/null 2>&1
 }
