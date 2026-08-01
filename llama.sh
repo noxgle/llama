@@ -177,6 +177,11 @@ build_run_args() {
   LLAMA_ARGS+=(--chat-template-kwargs '{"preserve_thinking": false}')
   LLAMA_ARGS+=(--threads-http "${THREADS_HTTP:-2}")
 
+  # Slot save/restore (KV cache persistence via /slots/{id}/save|restore)
+  if [ -n "${SLOT_SAVE_PATH:-}" ]; then
+    LLAMA_ARGS+=(--slot-save-path "$SLOT_SAVE_PATH")
+  fi
+
   # Speculative decoding (MTP / draft)
   if [ -n "${SPEC_TYPE:-}" ]; then
     LLAMA_ARGS+=(--spec-type "$SPEC_TYPE")
