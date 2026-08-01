@@ -11,25 +11,28 @@
 | 5 | **Qwen3.6 35B A3B MTP Q4_K_M q8_0/q8_0** (unlimited, 150K) | **33.1** | **91.3%** | 22,181 | **13.6 min** | **A** | A | A | A | A | A | A | A | A | A | A |
 | 6 | **Qwen3.6 35B A3B MTP Q4_K_M q8_0/q8_0** (2026-06-29, `8c146a8`) | **33.0** | **90.5%** | 28,195 | **15.0 min** | **A** | A | A | A | A | A | A | A | A | A | A |
 | 7 | **Qwen3.6 35B A3B MTP Q4_K_M q8_0/q8_0** (2026-07-29, `b10068` local `GGML_NATIVE=ON`) | **33.6** | **91.3%** | 24,183 | **13.2 min** | **A** | A | A | A | A | A | A | A | A | A | A |
+| 8 | **Qwen3.6 35B A3B MTP Q4_K_M q8_0/q8_0** (2026-08-01, `b10213` local `GGML_NATIVE=ON`) | **33.8** | **90.8%** | 26,089 | **13.3 min** | **A** | A | A | A | A | A | A | A | A | A | A |
 
 <!-- Add rows from #5 upwards. Columns: Speed (tok/s), Draft% (draft accept rate), Total tok, Total time, Grade (overall), Data/.../Algo (per-task grades A-F) -->
 
 ### Model Comparison Highlights
 
-| Aspect | Gemma4 26B | Qwen Q4 (q4_0) | Qwen Q5 (q4_0) | Qwen Q5 q8_0 | Qwen Q4 q8_0 | Qwen Q4 q8_0'29 | **Qwen Q4 q8_0'29 (local)** |
-|--------|------------|----------------|-----------------|-----------------|--------------------|-------------------|----------------------------|
-| **Speed** | 27.3 tok/s | 29.1 tok/s | 27.5 tok/s | 29.7 tok/s | 33.1 tok/s | 33.0 tok/s | **33.6 tok/s** |
-| **Draft accept** | 89.6% | 83.1% | 82.0% | 91.0% | 91.3% | 90.5% | **91.3%** |
-| **Total tokens** | **14,574** | 30,973 | 33,080 | 26,193 | 22,181 | 28,195 | **24,183** |
-| **Total time** | **9.7 min** | 18.0 min | 20.5 min | 15.3 min | 13.6 min | 15.0 min | **13.2 min** |
-| **Tasks** | 10/10 (A) | 10/10 (A) | 10/10 (A) | 10/10 (A) | 10/10 (A) | 10/10 (A) | 10/10 (A) |
-| **Server** | .21 (prod) | .20 (prod) | .19 (prod) | .38 (dev) | .38 (dev) | .38 (dev) | .38 (dev) |
-| **Build** | b9770 | b9770 | b9770 | b9770 | b9770 | `8c146a8` | **b10068 local `GGML_NATIVE=ON`** |
-| **GPU VRAM** | 5415 MiB | 4473 MiB | 5471 MiB | 5705 MiB | 5751 MiB | — | 5541 MiB |
-| **Context** | 131K (Q4_0) | 160K (Q4_0) | 160K (Q4_0) | 143K (Q8_0) | 150K (Q8_0) | — | 143K (Q8_0) |
-| **MTP** | n_max=2 | n_max=1 | n_max=1 | n_max=1 | n_max=1 | n_max=1 | n_max=1 |
+| Aspect | Gemma4 26B | Qwen Q4 (q4_0) | Qwen Q5 (q4_0) | Qwen Q5 q8_0 | Qwen Q4 q8_0 | Qwen Q4 q8_0'29 | **Qwen Q4 q8_0'29 (local)** | **Qwen Q4 q8_0'26-08 (b10213 local)** |
+|--------|------------|----------------|-----------------|-----------------|--------------------|-------------------|----------------------------|-----------------------------------|
+| **Speed** | 27.3 tok/s | 29.1 tok/s | 27.5 tok/s | 29.7 tok/s | 33.1 tok/s | 33.0 tok/s | **33.6 tok/s** | **33.8 tok/s** |
+| **Draft accept** | 89.6% | 83.1% | 82.0% | 91.0% | 91.3% | 90.5% | **91.3%** | **90.8%** |
+| **Total tokens** | **14,574** | 30,973 | 33,080 | 26,193 | 22,181 | 28,195 | **24,183** | **26,089** |
+| **Total time** | **9.7 min** | 18.0 min | 20.5 min | 15.3 min | 13.6 min | 15.0 min | **13.2 min** | **13.3 min** |
+| **Tasks** | 10/10 (A) | 10/10 (A) | 10/10 (A) | 10/10 (A) | 10/10 (A) | 10/10 (A) | 10/10 (A) | 10/10 (A) |
+| **Server** | .21 (prod) | .20 (prod) | .19 (prod) | .38 (dev) | .38 (dev) | .38 (dev) | .38 (dev) | .38 (dev) |
+| **Build** | b9770 | b9770 | b9770 | b9770 | b9770 | `8c146a8` | **b10068 local `GGML_NATIVE=ON`** | **b10213 local `GGML_NATIVE=ON`** |
+| **GPU VRAM** | 5415 MiB | 4473 MiB | 5471 MiB | 5705 MiB | 5751 MiB | — | 5541 MiB | 5541 MiB |
+| **Context** | 131K (Q4_0) | 160K (Q4_0) | 160K (Q4_0) | 143K (Q8_0) | 150K (Q8_0) | — | 143K (Q8_0) | 143K (Q8_0) |
+| **MTP** | n_max=2 | n_max=1 | n_max=1 | n_max=1 | n_max=1 | n_max=1 | n_max=1 | n_max=1 |
 
 *🏆 Local build with `GGML_NATIVE=ON` delivers **+1.8%** throughput (33.0→33.6 tok/s) and **−14% fewer tokens** (28,195→24,183) vs CI build. The local build produces more focused responses with higher draft acceptance.*
+
+*🏆 b10213 (2026-08-01, local build): **33.8 tok/s (+0.6%** vs b10068 local 33.6), 10/10 A, draft 90.8%. No regressions; slight token increase (24,183→26,089, +7.9%) within run-to-run variance.*
 
 ## Detailed Results
 
@@ -265,6 +268,46 @@
 - No CPU fallback, OOM, or SIGILL detected.
 
 **Takeaway:** **Local build with `GGML_NATIVE=ON` is a clear upgrade** over the CI build on the same hardware. Not only is throughput slightly higher (+1.8%), but the model produces more concise responses (−14% tokens) with better draft acceptance. Combined with the significant prefill improvements reported earlier (+35-46%), the local build is recommended for all Ryzen 5600X deployments.
+
+---
+
+### #8  Qwen3.6 35B A3B MTP Q4_K_M q8_0/q8_0 KV (unlimited) — 2026-08-01 (local build `GGML_NATIVE=ON`, `b10213`)
+
+**Config file:** `configs/qwen3.6-35ba3b-mtp-unsloth.env`  
+**Server:** 192.168.200.38 (dev, Debian 13 trixie, Proxmox LXC)  
+**GPU:** RTX A2000 6 GB (Ampere, Tensor Cores) — 5541/6138 MiB idle (90%)  
+**Model:** `unsloth/Qwen3.6-35B-A3B-MTP-GGUF:UD-Q4_K_M` (HF download, ~15.7 GB) — MTP draft against target  
+**Flags:** `-hf unsloth/...`, `SPEC_TYPE=draft-mtp`, `SPEC_DRAFT_N_MAX=1`  
+**Build:** `b10213`, locally compiled with `GGML_NATIVE=ON` (`-march=native` on Ryzen 5600X)  
+**Cache:** `CACHE_TYPE_K=q8_0, CACHE_TYPE_V=q8_0`  
+**Context:** 143360 (140K, Q8_0 KV cache)  
+**Batch:** BATCH=3072, UBATCH=1536  
+**Threads:** THREADS=4 (LXC cpuset, verified 2026-06-26)  
+**Timeout:** 600s | **Max tokens:** unlimited
+
+| # | Task | tok/s | tokens | time | Draft% | Grade |
+|---|------|-------|--------|------|--------|-------|
+| 1 | Data Analysis | 34.8 | 1,387 | 43s | 95% | **A** |
+| 2 | Python Programming | 33.8 | 4,631 | 139s | 91% | **A** |
+| 3 | Logic Puzzle | 33.8 | 2,206 | 67s | 90% | **A** |
+| 4 | Mathematics | 34.4 | 1,726 | 52s | 96% | **A** |
+| 5 | Networking Knowledge | 33.1 | 2,114 | 66s | 85% | **A** |
+| 6 | Creative Writing | 34.0 | 2,905 | 87s | 94% | **A** |
+| 7 | Code Review | 33.4 | 3,832 | 117s | 90% | **A** |
+| 8 | SQL Query | 33.9 | 3,232 | 98s | 91% | **A** |
+| 9 | Explain Like I'm 5 | 33.3 | 1,062 | 34s | 88% | **A** |
+| 10 | Algorithm Design | 33.3 | 2,994 | 92s | 88% | **A** |
+
+**Key findings:**
+- **New speed leader:** 33.8 tok/s avg — **+0.6%** over b10068 local (33.6 tok/s) and +2.4% over CI build (33.0).
+- **Draft acceptance:** 90.8% avg (vs 91.3% on b10068) — within noise.
+- **Tokens:** 26,089 total (+7.9% vs b10068's 24,183) — run-to-run variance, all tasks complete with `finish=stop`.
+- **Total time:** 13.3 min — on par with b10068 (13.2 min).
+- **All 10 tasks A-grade**, no timeouts, no CPU fallback, no OOM.
+- **MTP sweep on b10213** (same image, draft-mtp): n_max=1 → 33.06 tok/s (prod config), n_max=3 → 29.11, n_max=4 → 25.92, MTP off → 30.84. Ordering matches b10068; n_max=1 remains optimal.
+- **Batch (85.8K prompt):** prefill 507 tok/s, gen 27.6 tok/s, VRAM 5631 MiB.
+
+**Takeaway:** **b10213 is a safe upgrade** over b10068: +0.6% generation throughput, identical stability, no regressions in prefill (507 tok/s @ 85.8K). The build adds upstream fixes/features since b10068 (MTP improvements, `--no-mmproj`/draft-model arg handling changes that required compose updates — see commit history `6ca93f4`, `45431b8`, `832cf42`). Recommended for rollout to production (tag `b10213`).
 
 ## Notes
 
