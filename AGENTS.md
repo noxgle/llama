@@ -14,7 +14,7 @@ SOTs: `llama.sh`, `configs/*.env`, `deploy/install-llama.sh`, `.github/workflows
 ## Deployment gotchas (read before touching servers)
 
 ### `--gpus all` → 1.5 tok/s after reboot (Docker 26.1.5)
-**Never use `--gpus all`** (`llama.sh`'s `docker run`). Use `deploy.resources.reservations.devices` (`docker-compose.yml` + `.env`). After boot, `--gpus all` triggers CPU-serialized CUDA JIT on first inference (1.5 vs 32 tok/s). Verified: docker-compose method gives 31.8 tok/s immediately. No systemd/nvidia-persistenced needed.
+**Never use `--gpus all`**. Use `deploy.resources.reservations.devices` (`docker-compose.yml` + `.env`) or `--runtime=nvidia` for `docker run` (llama.sh, benchmark scripts — fixed 2026-08-01). After boot, `--gpus all` triggers CPU-serialized CUDA JIT on first inference (1.5 vs 32 tok/s). Verified: docker-compose method gives 31.8 tok/s immediately. No systemd/nvidia-persistenced needed.
 
 ### `.env` changes require down+up, not restart
 `docker compose restart` does NOT re-read `.env`. Always `docker compose down && docker compose up -d`.
@@ -39,15 +39,24 @@ This file is a critical provisioning script shared across all deployments. Chang
 ## Current production config (Qwen3.6 Q4_K_M)
 - **Config:** `configs/qwen3.6-35ba3b-mtp-unsloth.env`
 - **Model:** `unsloth/Qwen3.6-35B-A3B-MTP-GGUF:UD-Q4_K_M` (HF)
-- **Key values:** `CTX=143360` | `NGLAYERS=999` | `BATCH=3072`/`UBATCH=1536` | `CACHE_RAM=4096` | `CACHE_REUSE=256` | `CTX_CHECKPOINTS=8` | `CACHE_TYPE_K/V=q8_0` | `SPEC_TYPE=draft-mtp` | `SPEC_DRAFT_N_MAX=1`
-- **llama.cpp:** commit `b10068` (master, 2026-06-29 — beyond b9770). Previous build: `8c146a8`
-- **Baseline throughput:** ~33 tok/s (short, q8_0 KV), ~30 tok/s (44K prompt, prefill at **680 t/s** — **+35%** vs previous 505 t/s)
+- **Key values:** `CTX=143360` | `NGLAYERS=999` | `BATCH=3072`/`UBATCH=1536` | `CACHE_RAM=4096` | `CACHE_REUSE=256` | `CTX_CHECKPOINTS=10` | `CACHE_TYPE_K/V=q8_0` | `SPEC_TYPE=draft-mtp` | `SPEC_DRAFT_N_MAX=1` | `SLOT_SAVE_PATH=/slots`
+- **llama.cpp:** commit `b10213` (master, 2026-08-01 — beyond b9770/b10068). Previous build: `b10068`. Build locally with `LLAMA_REF=b10213 LLAMA_NATIVE=ON docker compose build`
+- **Baseline throughput:** ~33.8 tok/s (knowledge suite, 10/10 A, 26K tok, 13.3 min), ~32.8 tok/s (long), prefill 507 t/s @ 85.8K prompt
 
 ### New flags added (2026-06-28)
 - `--cache-ram 4096` — prompt cache in system RAM (4 GiB). Works with all configs.
 - `--cache-reuse 256` — KV cache reuse window. **Ineffective for MTP/SWA contexts** (Qwen3.6, Gemma4) — logs `not supported by this context` / `forcing full prompt re-processing`. Flag is harmless, just ignored.
 - `--chat-template-kwargs {"preserve_thinking": false}` — Qwen internal reasoning tokens hidden in API.
 - `--threads-http 2` — HTTP server threads.
+
+### llama.cpp b10213 breaking changes (2026-08-01)
+- **Empty argv elements rejected** — `--hf-repo-draft ""`, `--no-mmproj ""` etc. now fail with `error: invalid argument:`. Compose workaround: entrypoint filters empty args; draft model via env `LLAMA_ARG_SPEC_DRAFT_MODEL` / `LLAMA_ARG_SPEC_DRAFT_HF_REPO`; mmproj as single `--no-mmproj`/`--mmproj=<path>` element. See `docker-compose.yml` + commits `6ca93f4`, `45431b8`.
+- **Slot save/restore endpoint changed:** `POST /slots/{id}?action=save|restore` (query param), old `/slots/{id}/save` → 404. Filename is relative to `--slot-save-path`. Requires the flag to be set (else 404 `File Not Found`). Wired: `SLOT_SAVE_PATH=/slots` in config → `llama.sh` passes `--slot-save-path`.
+- **Verified on dev .38 (local `GGML_NATIVE=ON` build):** knowledge 33.8 tok/s (+0.6% vs b10068), guarded short 33.8 / long 32.8, MTP sweep ordering unchanged (n1 best: 33.06; n3 29.11; n4 25.92; off 30.84), batch 85.8K prefill 507 t/s. **No regressions.**
+- **Slot save/restore is SLOWER than RAM prompt cache** on this setup: restore from 100 MB disk file + reprocess ≈ 5.0–5.3 s prefill vs 1.1 s with `cache_prompt=true` + `--cache-ram 4096`. Feature works but is not beneficial here.
+
+### docker run on Docker 26 — use `--runtime=nvidia`, NOT `--gpus all`
+`llama.sh` and `scripts/benchmark-draft-mtp.sh` now use `--runtime=nvidia` (+ `NVIDIA_VISIBLE_DEVICES=all`) — `--gpus all` alone doesn't mount `libcuda.so.1` and triggers the post-reboot CPU-JIT gotcha. `llama.sh` image override: `LLAMA_IMAGE=ghcr.io/noxgle/llama-server:b10213 ./llama.sh start qwen`.
 
 ### Batch tuning (RTX A2000 6 GB)
 `UBATCH` must ≈ `BATCH` (1024/256 was −39%). Optimal: **BATCH=3072, UBATCH=1536** (+88% prefill, −35% total time, ~86% VRAM). 4096/2048 works at 93% VRAM but 5120/2560 OOMs. Generation speed (~25 tok/s) is memory-bandwidth-bound, unaffected by batch size.
@@ -84,7 +93,7 @@ curl -s http://192.168.200.38:8089/health
 - Reads `.env` — copy from `configs/<name>.env` then `down && up -d`.
 
 ### `llama.sh` (docker run wrapper, testing only)
-**Do not use on Docker 26** — `--gpus all` causes 1.5 tok/s post-reboot. Fine for local testing.
+**OK on Docker 26** since 2026-08-01 — uses `--runtime=nvidia` (+ `NVIDIA_VISIBLE_DEVICES=all`), not `--gpus all`. Image override: `LLAMA_IMAGE=ghcr.io/noxgle/llama-server:b10213`. Mounts `/opt/llama/slots → /slots` for slot save/restore; passes `--slot-save-path` when `SLOT_SAVE_PATH` is set in config.
 ```bash
 /opt/llama/llama.sh start qwen       # reads configs/qwen3.6-35ba3b-mtp-unsloth.env
 /opt/llama/llama.sh start gemma4     # reads configs/gemma4-26b-q4-k-m-mtp.env
