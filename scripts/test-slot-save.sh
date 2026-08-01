@@ -14,7 +14,7 @@ set -euo pipefail
 HOST="${HOST:-root@192.168.200.38}"
 PORT="${PORT:-8089}"
 MODEL="${MODEL:-qwen3.6}"
-LLAMA_IMAGE="${LLAMA_IMAGE:-ghcr.io/noxgle/llama-server:b10213}"
+LLAMA_IMAGE="${LLAMA_IMAGE:-ghcr.io/noxgle/llama-server:b10068}"
 BASE_URL="http://$HOST:$PORT"
 SLOT_FILE="test-slot.bin"
 

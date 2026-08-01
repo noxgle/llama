@@ -9,7 +9,7 @@ services:
         LLAMA_REF: "${LLAMA_REF:-master}"
         LLAMA_NATIVE: "${LLAMA_NATIVE:-OFF}"
         BUILD_JOBS: "6"
-    image: ghcr.io/noxgle/llama-server:b10213
+    image: ghcr.io/noxgle/llama-server:b10068
     ports:
       - "${PORT:-8089}:${PORT:-8089}"
     volumes:
