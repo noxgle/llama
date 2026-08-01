@@ -108,10 +108,13 @@ build_run_args() {
   set +a
 
   # Base docker arguments (image is passed separately — must be last)
+  # NOTE: use --runtime=nvidia (nvidia container toolkit) instead of --gpus all —
+  # on Docker 26.1.5, --gpus all triggers CPU-serialized CUDA JIT after boot
+  # (~1.5 tok/s vs 32 tok/s). See AGENTS.md "Deployment gotchas".
   DOCKER_ARGS=(
     --name "$container"
     --restart unless-stopped
-    --gpus all
+    --runtime=nvidia
     -p "$port:${PORT:-8089}"
     -v llama_hf-cache:/root/.cache/huggingface
     -v "$ROOT/models:/models:ro"

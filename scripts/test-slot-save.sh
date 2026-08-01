@@ -14,6 +14,7 @@ set -euo pipefail
 HOST="${HOST:-root@192.168.200.38}"
 PORT="${PORT:-8089}"
 MODEL="${MODEL:-qwen3.6}"
+LLAMA_IMAGE="${LLAMA_IMAGE:-ghcr.io/noxgle/llama-server:b10213}"
 BASE_URL="http://$HOST:$PORT"
 SLOT_FILE="/slots/test-slot.bin"
 
@@ -355,7 +356,7 @@ echo ""
 
 # Restart — wyłącz SLOT_SAVE_PATH na czas baseline testu
 echo ">>> Disabling SLOT_SAVE_PATH and restarting..."
-ssh "$HOST" "cd /opt/llama && sed -i 's/^SLOT_SAVE_PATH/#SLOT_SAVE_PATH/' configs/qwen3.6-35ba3b-mtp-unsloth.env && ./llama.sh restart qwen" 2>&1
+ssh "$HOST" "cd /opt/llama && sed -i 's/^SLOT_SAVE_PATH/#SLOT_SAVE_PATH/' configs/qwen3.6-35ba3b-mtp-unsloth.env && LLAMA_IMAGE=$LLAMA_IMAGE ./llama.sh restart qwen" 2>&1
 wait_for_health
 # Przywróć config
 ssh "$HOST" "cd /opt/llama && sed -i 's/^#SLOT_SAVE_PATH/SLOT_SAVE_PATH/' configs/qwen3.6-35ba3b-mtp-unsloth.env"
@@ -400,7 +401,7 @@ echo ""
 
 # Restart — SLOT_SAVE_PATH włączony (config już przywrócony wyżej)
 echo ">>> Restarting with SLOT_SAVE_PATH enabled..."
-ssh "$HOST" "cd /opt/llama && ./llama.sh restart qwen" 2>&1
+ssh "$HOST" "cd /opt/llama && LLAMA_IMAGE=$LLAMA_IMAGE ./llama.sh restart qwen" 2>&1
 wait_for_health
 
 # Usuń stary slot
