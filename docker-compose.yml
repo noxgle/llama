@@ -77,9 +77,11 @@ services:
       - "--no-mmap"
       - "--ctx-checkpoints"
       - "${CTX_CHECKPOINTS:-4}"
-      # Multimodal projector: set MMPROJ_FLAG=--mmproj, MMPROJ=/path/to/mmproj.gguf
-      # (merged into one argv element — b10213+ rejects trailing empty values)
-      - "${MMPROJ_FLAG:---no-mmproj}${MMPROJ:+=$MMPROJ}"
+      # Multimodal projector: flag + path as SEPARATE elements (b10213 rejects the
+      # --mmproj=/path equals-form; entrypoint filters the empty path when MMPROJ
+      # is unset, leaving a plain --no-mmproj)
+      - "${MMPROJ_FLAG:---no-mmproj}"
+      - "${MMPROJ:-}"
       # Image token limits for multimodal (low = fast encoding, less detail)
       - "--image-min-tokens"
       - "${IMAGE_MIN_TOKENS:-66}"
