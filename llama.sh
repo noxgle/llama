@@ -118,6 +118,7 @@ build_run_args() {
     -p "$port:${PORT:-8089}"
     -v llama_hf-cache:/root/.cache/huggingface
     -v "$ROOT/models:/models:ro"
+    -v "$ROOT/slots:/slots"
     -e NVIDIA_VISIBLE_DEVICES=all
     -d
   )
