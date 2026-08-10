@@ -353,7 +353,7 @@ case "$MODEL" in
     docker run --rm -d --name llama-predownload \
       -v llama_hf-cache:/root/.cache/huggingface \
       "$LLAMA_IMAGE" \
-      -hf unsloth/Qwen3.6-35B-A3B-MTP-GGUF:UD-Q4_K_M \
+      -hf unsloth/Qwen3.6-35B-A3B-MTP-GGUF:5bc3e238d916f48a861bac2f8a1990a0e9b7e98d \
       -c 4096 --no-mmap --no-mmproj 2>/dev/null || true
     sleep 60
     docker stop llama-predownload 2>/dev/null || true
@@ -365,7 +365,7 @@ case "$MODEL" in
     docker run --rm -d --name llama-predownload \
       -v llama_hf-cache:/root/.cache/huggingface \
       "$LLAMA_IMAGE" \
-      -hf unsloth/gemma-4-26B-A4B-it-GGUF:UD-Q4_K_M \
+      -hf unsloth/gemma-4-26B-A4B-it-GGUF:c099eb48e663fd284577b04978a94ffccb261841 \
       -c 4096 --no-mmap --no-mmproj 2>/dev/null || true
     sleep 60
     docker stop llama-predownload 2>/dev/null || true

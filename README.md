@@ -137,7 +137,7 @@ curl http://<server-ip>:8089/v1/chat/completions \
 
 | Profile | Config file | Model source | Speed | VRAM |
 |---|---|---|---|---:|
-| **Qwen3.6 Q4\_K\_M** (default) | `configs/qwen3.6-35ba3b-mtp-unsloth.env` | `-hf unsloth/...:UD-Q4_K_M` | ~33 tok/s | ~5.2 GiB |
+| **Qwen3.6 Q4\_K\_M** (default) | `configs/qwen3.6-35ba3b-mtp-unsloth.env` | `-hf unsloth/...:5bc3e23` (pinned, Dynamic 2.0) | ~33 tok/s | ~5.2 GiB |
 | **Qwen3.6 Q5\_K\_M** | `configs/qwen3.6-35ba3b-mtp-unsloth-q5.env` | Local GGUF (symlink) | ~30 tok/s | ~5.3 GiB |
 | **Gemma4 26B Q4\_K\_M + MTP** | `configs/gemma4-26b-q4-k-m-mtp.env` | Local GGUF (symlink) + draft head | ~27 tok/s | ~5.4 GiB |
 | **Gemma 4 E2B Q4\_K\_M + vision + MTP** | `configs/gemma4-e2b-q4-k-m-mtp.env` | Local GGUF + mmproj + MTP draft | ~95 tok/s | ~4.4 GiB |
@@ -185,7 +185,7 @@ docker run --rm -v /opt/llama/models:/models -v llama_hf-cache:/root/.cache/hugg
 
 | Variable | Description | Qwen3.6 (default) |
 |---|---|---|
-| `MODEL` / `MODEL_FLAG` | Model source (`-hf` repo or `-m` local path) | `unsloth/Qwen3.6-35B-A3B-MTP-GGUF:UD-Q4_K_M` |
+| `MODEL` / `MODEL_FLAG` | Model source (`-hf` repo or `-m` local path) | `unsloth/Qwen3.6-35B-A3B-MTP-GGUF:5bc3e23…` |
 | `CTX` | Context length | `143360` (140K) |
 | `NGLAYERS` | GPU layers (999 = all) | `999` |
 | `BATCH` / `UBATCH` | Batch sizes | `3072` / `1536` |
@@ -404,7 +404,7 @@ The `--gpus all` flag (used by `llama.sh`) does not fully initialize the GPU run
 
 ### HF download bug (`get_hf_plan`)
 
-`:UD-Q4_K_M` works via HF, but `:UD-Q8_K_XL` and subdirectory files (e.g., `MTP/`) fail. Workaround: local symlinks with `MODEL_FLAG=-m` / `DRAFT_FLAG=-md`.
+The `UD-*` refs were removed by unsloth on 2026-08 (repo re-uploaded as Dynamic 2.0, `main` only). Pin by commit SHA (e.g. Qwen `:5bc3e23`). Old naming `Qwen3.6-35B-A3B-MTP-UD-Q4_K_M.gguf` is gone; new is `Qwen3.6-35B-A3B-UD-Q4_K_M.gguf`. Root-level files still download fine via pinned SHA; subdirectory files (e.g., `MTP/`) fail. Workaround: local symlinks with `MODEL_FLAG=-m` / `DRAFT_FLAG=-md`.
 
 ### Symlinks must use container paths
 

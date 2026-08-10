@@ -24,7 +24,7 @@ curl http://<LXC_IP>:8089/health
 | **LXC** | Debian 13 container with GPU passthrough |
 | **Docker + compose** | Official Docker CE with compose plugin |
 | **llama.cpp** | `ggml-org/llama.cpp:master` with MTP PR #22673 |
-| **Model** | `unsloth/Qwen3.6-35B-A3B-MTP-GGUF:UD-Q4_K_M` |
+| **Model** | `unsloth/Qwen3.6-35B-A3B-MTP-GGUF:5bc3e23` (pinned commit, Dynamic 2.0) |
 | **Config** | `SPEC_TYPE=draft-mtp`, `SPEC_DRAFT_N_MAX=2`, `CTX=163840` |
 | **Auto-start** | Systemd via `llama-compose.service` (waits for GPU + Docker) |
 | **Post-boot fix** | `llama-postboot-restart.service` (90s delayed restart to avoid startup race) |

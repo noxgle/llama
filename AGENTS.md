@@ -23,7 +23,7 @@ SOTs: `llama.sh`, `configs/*.env`, `deploy/install-llama.sh`, `.github/workflows
 In `.gitignore` and excluded by `sync.sh push`. Changing `configs/*.env` locally has no effect; on server: `cp configs/<name>.env .env && docker compose down && docker compose up -d`.
 
 ### HF download bug (get_hf_plan)
-`:UD-Q4_K_M` works via HF, but `:UD-Q8_K_XL` and subdirectory files (e.g., `MTP/gemma-...-Q8_0-MTP.gguf`) fail. Workaround: local symlinks with `MODEL_FLAG=-m` / `DRAFT_FLAG=-md`. See docker-compose.yml for dual-flag pattern.
+The `UD-*` refs were removed by unsloth on 2026-08 (repo re-uploaded as Dynamic 2.0, `main` only). Pin by commit SHA (e.g. Qwen `:5bc3e23`). Old naming `Qwen3.6-35B-A3B-MTP-UD-Q4_K_M.gguf` is gone; new is `Qwen3.6-35B-A3B-UD-Q4_K_M.gguf`. Root-level files still download fine via pinned SHA; subdirectory files (e.g., `MTP/`) fail — use local symlinks with `MODEL_FLAG=-m` / `DRAFT_FLAG=-md`. See docker-compose.yml for dual-flag pattern.
 
 ### Symlinks must use container paths, not host paths
 Symlink targets must be **inside the container** (`/root/.cache/huggingface/hub/...`), not on the host (`/var/lib/docker/volumes/...`). The HF cache volume mounts at `/root/.cache/huggingface`. Verify with:
@@ -38,7 +38,7 @@ This file is a critical provisioning script shared across all deployments. Chang
 
 ## Current production config (Qwen3.6 Q4_K_M)
 - **Config:** `configs/qwen3.6-35ba3b-mtp-unsloth.env`
-- **Model:** `unsloth/Qwen3.6-35B-A3B-MTP-GGUF:UD-Q4_K_M` (HF)
+- **Model:** `unsloth/Qwen3.6-35B-A3B-MTP-GGUF:5bc3e23` (HF, pinned commit — Dynamic 2.0, 22.7 GB; unsloth removed the `UD-Q4_K_M` ref on 2026-08, new filename `Qwen3.6-35B-A3B-UD-Q4_K_M.gguf`)
 - **Key values:** `CTX=143360` | `NGLAYERS=999` | `BATCH=3072`/`UBATCH=1536` | `CACHE_RAM=4096` | `CACHE_REUSE=256` | `CTX_CHECKPOINTS=10` | `CACHE_TYPE_K/V=q8_0` | `SPEC_TYPE=draft-mtp` | `SPEC_DRAFT_N_MAX=1` | `SLOT_SAVE_PATH=/slots`
 - **llama.cpp:** commit `b10068` (master, 2026-06-29 — beyond b9770). Previous build: `8c146a8`. b10213 tested 2026-08-01 but **deferred** — see "b10213 status" below.
 - **Baseline throughput:** ~33.6 tok/s (knowledge suite, 10/10 A, 24K tok, 13.2 min), ~32.8 tok/s (long), prefill 507 t/s @ 85.8K prompt

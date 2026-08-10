@@ -12,6 +12,7 @@
 | 6 | **Qwen3.6 35B A3B MTP Q4_K_M q8_0/q8_0** (2026-06-29, `8c146a8`) | **33.0** | **90.5%** | 28,195 | **15.0 min** | **A** | A | A | A | A | A | A | A | A | A | A |
 | 7 | **Qwen3.6 35B A3B MTP Q4_K_M q8_0/q8_0** (2026-07-29, `b10068` local `GGML_NATIVE=ON`) | **33.6** | **91.3%** | 24,183 | **13.2 min** | **A** | A | A | A | A | A | A | A | A | A | A |
 | 8 | **Qwen3.6 35B A3B MTP Q4_K_M q8_0/q8_0** (2026-08-01, `b10213` local `GGML_NATIVE=ON`) | **33.8** | **90.8%** | 26,089 | **13.3 min** | **A** | A | A | A | A | A | A | A | A | A | A |
+| 9 | **Qwen3.6 35B A3B MTP Q4_K_M q8_0/q8_0** (2026-08-06, `b10293` local `GGML_NATIVE=ON`) | **33.7** | **90.6%** | 30,902 | 15.2 min | **A** | A | A | A | A | A | A | A | A | A | A |
 
 <!-- Add rows from #5 upwards. Columns: Speed (tok/s), Draft% (draft accept rate), Total tok, Total time, Grade (overall), Data/.../Algo (per-task grades A-F) -->
 
