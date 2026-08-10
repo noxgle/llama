@@ -1,0 +1,179 @@
+=================================================================
+  Gemma 4 E2B Vision Benchmark
+  Host: root@192.168.200.38:8089  Date: 2026-08-06 17:55:53
+=================================================================
+
+Test                            Cycle     TTFT    tok/s    tok%    VRAM
+------------------------------------------------------------------
+baseline                        877ms    169ms   100.2       — 3131MiB
+IMAGE_MAX_TOKENS=64             625ms    131ms   100.8   +0.7% 3121MiB
+IMAGE_MAX_TOKENS=256            852ms    179ms   106.2   +6.0% 3135MiB
+IMAGE_MAX_TOKENS=512            755ms    179ms   107.7   +7.5% 3131MiB
+BATCH=512                       782ms    169ms   111.2  +11.0% 3125MiB
+BATCH=1024                      817ms    169ms   107.4   +7.2% 3133MiB
+BATCH=4096                      878ms    169ms   101.3   +1.1% 3131MiB
+UBATCH=256                      805ms    150ms   110.2  +10.0% 3051MiB
+UBATCH=1024                     847ms    212ms   106.3   +6.1% 3293MiB
+SPEC_DRAFT_N_MAX=1              778ms    168ms   109.3   +9.1% 3135MiB
+SPEC_DRAFT_N_MAX=2              797ms    170ms   109.9   +9.7% 3133MiB
+REASONING=on                    926ms    178ms   149.9  +49.7% 3125MiB
+POLL=50                         766ms    168ms   104.3   +4.1% 3135MiB
+NO_HOST=                        802ms    168ms   103.9   +3.7% 3127MiB
+CTX=8192                        749ms    161ms   113.9  +13.6% 3075MiB
+THREADS=2                       756ms    168ms   107.6   +7.4% 3125MiB
+THREADS=6                       797ms    168ms   108.6   +8.4% 3133MiB
+THREADS_BATCH=2                 721ms    168ms   110.8  +10.6% 3133MiB
+THREADS_BATCH=6                 776ms    169ms   109.4   +9.2% 3123MiB
+
+--- baseline ---
+  VRAM: 3131 MiB
+  cycle 2: 950ms tot, 210ms ttft, 107.8 tok/s, 26 pred
+  cycle 3: 957ms tot, 204ms ttft, 97.2 tok/s, 25 pred
+  cycle 4: 837ms tot, 201ms ttft, 101.8 tok/s, 28 pred
+  cycle 5: 1055ms tot, 203ms ttft, 92.4 tok/s, 27 pred
+  cycle 6: 585ms tot, 26ms ttft, 101.7 tok/s, 27 pred
+
+--- IMAGE_MAX_TOKENS=64 ---
+  VRAM: 3121 MiB
+  cycle 2: 637ms tot, 164ms ttft, 100.1 tok/s, 15 pred
+  cycle 3: 752ms tot, 153ms ttft, 85.3 tok/s, 19 pred
+  cycle 4: 646ms tot, 157ms ttft, 127.1 tok/s, 13 pred
+  cycle 5: 644ms tot, 154ms ttft, 90.6 tok/s, 15 pred
+  cycle 6: 446ms tot, 25ms ttft, 101.1 tok/s, 14 pred
+
+--- IMAGE_MAX_TOKENS=256 ---
+  VRAM: 3135 MiB
+  cycle 2: 982ms tot, 223ms ttft, 102.2 tok/s, 31 pred
+  cycle 3: 804ms tot, 215ms ttft, 120.4 tok/s, 23 pred
+  cycle 4: 879ms tot, 213ms ttft, 97.8 tok/s, 25 pred
+  cycle 5: 949ms tot, 218ms ttft, 110.0 tok/s, 25 pred
+  cycle 6: 645ms tot, 25ms ttft, 100.8 tok/s, 25 pred
+
+--- IMAGE_MAX_TOKENS=512 ---
+  VRAM: 3131 MiB
+  cycle 2: 841ms tot, 222ms ttft, 105.8 tok/s, 27 pred
+  cycle 3: 726ms tot, 218ms ttft, 105.2 tok/s, 24 pred
+  cycle 4: 892ms tot, 214ms ttft, 105.6 tok/s, 27 pred
+  cycle 5: 667ms tot, 214ms ttft, 112.9 tok/s, 14 pred
+  cycle 6: 650ms tot, 26ms ttft, 109.3 tok/s, 29 pred
+
+--- BATCH=512 ---
+  VRAM: 3125 MiB
+  cycle 2: 992ms tot, 210ms ttft, 116.5 tok/s, 28 pred
+  cycle 3: 801ms tot, 203ms ttft, 105.0 tok/s, 21 pred
+  cycle 4: 742ms tot, 205ms ttft, 105.1 tok/s, 24 pred
+  cycle 5: 783ms tot, 202ms ttft, 119.9 tok/s, 24 pred
+  cycle 6: 593ms tot, 26ms ttft, 109.4 tok/s, 26 pred
+
+--- BATCH=1024 ---
+  VRAM: 3133 MiB
+  cycle 2: 930ms tot, 210ms ttft, 116.7 tok/s, 27 pred
+  cycle 3: 682ms tot, 200ms ttft, 113.5 tok/s, 22 pred
+  cycle 4: 715ms tot, 207ms ttft, 116.7 tok/s, 21 pred
+  cycle 5: 1113ms tot, 200ms ttft, 87.7 tok/s, 28 pred
+  cycle 6: 646ms tot, 26ms ttft, 102.3 tok/s, 29 pred
+
+--- BATCH=4096 ---
+  VRAM: 3131 MiB
+  cycle 2: 953ms tot, 210ms ttft, 107.2 tok/s, 30 pred
+  cycle 3: 949ms tot, 202ms ttft, 100.3 tok/s, 24 pred
+  cycle 4: 941ms tot, 205ms ttft, 99.3 tok/s, 29 pred
+  cycle 5: 820ms tot, 201ms ttft, 99.1 tok/s, 24 pred
+  cycle 6: 729ms tot, 26ms ttft, 100.4 tok/s, 29 pred
+
+--- UBATCH=256 ---
+  VRAM: 3051 MiB
+  cycle 2: 834ms tot, 187ms ttft, 112.1 tok/s, 27 pred
+  cycle 3: 745ms tot, 179ms ttft, 116.3 tok/s, 22 pred
+  cycle 4: 838ms tot, 178ms ttft, 111.5 tok/s, 24 pred
+  cycle 5: 851ms tot, 179ms ttft, 107.7 tok/s, 25 pred
+  cycle 6: 755ms tot, 26ms ttft, 103.5 tok/s, 28 pred
+
+--- UBATCH=1024 ---
+  VRAM: 3293 MiB
+  cycle 2: 983ms tot, 264ms ttft, 103.4 tok/s, 26 pred
+  cycle 3: 911ms tot, 256ms ttft, 113.7 tok/s, 22 pred
+  cycle 4: 844ms tot, 255ms ttft, 98.6 tok/s, 25 pred
+  cycle 5: 921ms tot, 257ms ttft, 104.4 tok/s, 25 pred
+  cycle 6: 577ms tot, 26ms ttft, 111.6 tok/s, 24 pred
+
+--- SPEC_DRAFT_N_MAX=1 ---
+  VRAM: 3135 MiB
+  cycle 2: 839ms tot, 209ms ttft, 109.3 tok/s, 26 pred
+  cycle 3: 879ms tot, 202ms ttft, 103.5 tok/s, 23 pred
+  cycle 4: 776ms tot, 203ms ttft, 103.1 tok/s, 26 pred
+  cycle 5: 787ms tot, 201ms ttft, 112.7 tok/s, 25 pred
+  cycle 6: 609ms tot, 25ms ttft, 118.1 tok/s, 21 pred
+
+--- SPEC_DRAFT_N_MAX=2 ---
+  VRAM: 3133 MiB
+  cycle 2: 821ms tot, 210ms ttft, 108.6 tok/s, 28 pred
+  cycle 3: 842ms tot, 201ms ttft, 107.5 tok/s, 22 pred
+  cycle 4: 758ms tot, 206ms ttft, 108.7 tok/s, 23 pred
+  cycle 5: 924ms tot, 205ms ttft, 116.0 tok/s, 28 pred
+  cycle 6: 639ms tot, 26ms ttft, 108.5 tok/s, 26 pred
+
+--- REASONING=on ---
+  VRAM: 3125 MiB
+  cycle 2: 938ms tot, 219ms ttft, 150.4 tok/s, 50 pred
+  cycle 3: 954ms tot, 215ms ttft, 156.5 tok/s, 50 pred
+  cycle 4: 1009ms tot, 216ms ttft, 148.2 tok/s, 50 pred
+  cycle 5: 963ms tot, 215ms ttft, 134.7 tok/s, 50 pred
+  cycle 6: 768ms tot, 25ms ttft, 159.9 tok/s, 50 pred
+
+--- POLL=50 ---
+  VRAM: 3135 MiB
+  cycle 2: 944ms tot, 210ms ttft, 90.9 tok/s, 30 pred
+  cycle 3: 750ms tot, 201ms ttft, 115.3 tok/s, 23 pred
+  cycle 4: 698ms tot, 200ms ttft, 94.3 tok/s, 21 pred
+  cycle 5: 800ms tot, 202ms ttft, 111.2 tok/s, 24 pred
+  cycle 6: 637ms tot, 26ms ttft, 110.0 tok/s, 26 pred
+
+--- NO_HOST= ---
+  VRAM: 3127 MiB
+  cycle 2: 842ms tot, 210ms ttft, 114.7 tok/s, 30 pred
+  cycle 3: 842ms tot, 199ms ttft, 102.1 tok/s, 25 pred
+  cycle 4: 844ms tot, 204ms ttft, 93.1 tok/s, 24 pred
+  cycle 5: 850ms tot, 201ms ttft, 94.3 tok/s, 21 pred
+  cycle 6: 632ms tot, 26ms ttft, 115.0 tok/s, 24 pred
+
+--- CTX=8192 ---
+  VRAM: 3075 MiB
+  cycle 2: 770ms tot, 201ms ttft, 123.1 tok/s, 27 pred
+  cycle 3: 738ms tot, 194ms ttft, 116.6 tok/s, 25 pred
+  cycle 4: 822ms tot, 193ms ttft, 109.9 tok/s, 25 pred
+  cycle 5: 785ms tot, 192ms ttft, 107.3 tok/s, 25 pred
+  cycle 6: 632ms tot, 25ms ttft, 112.4 tok/s, 26 pred
+
+--- THREADS=2 ---
+  VRAM: 3125 MiB
+  cycle 2: 838ms tot, 209ms ttft, 103.6 tok/s, 29 pred
+  cycle 3: 739ms tot, 201ms ttft, 99.5 tok/s, 24 pred
+  cycle 4: 756ms tot, 201ms ttft, 117.2 tok/s, 21 pred
+  cycle 5: 829ms tot, 205ms ttft, 104.9 tok/s, 23 pred
+  cycle 6: 620ms tot, 25ms ttft, 112.7 tok/s, 22 pred
+
+--- THREADS=6 ---
+  VRAM: 3133 MiB
+  cycle 2: 847ms tot, 209ms ttft, 118.8 tok/s, 31 pred
+  cycle 3: 721ms tot, 201ms ttft, 110.4 tok/s, 25 pred
+  cycle 4: 757ms tot, 204ms ttft, 107.7 tok/s, 24 pred
+  cycle 5: 1044ms tot, 201ms ttft, 114.2 tok/s, 26 pred
+  cycle 6: 614ms tot, 26ms ttft, 92.1 tok/s, 28 pred
+
+--- THREADS_BATCH=2 ---
+  VRAM: 3133 MiB
+  cycle 2: 745ms tot, 209ms ttft, 121.3 tok/s, 28 pred
+  cycle 3: 743ms tot, 200ms ttft, 108.5 tok/s, 24 pred
+  cycle 4: 671ms tot, 202ms ttft, 119.2 tok/s, 21 pred
+  cycle 5: 814ms tot, 202ms ttft, 104.2 tok/s, 21 pred
+  cycle 6: 631ms tot, 25ms ttft, 100.9 tok/s, 29 pred
+
+--- THREADS_BATCH=6 ---
+  VRAM: 3123 MiB
+  cycle 2: 800ms tot, 210ms ttft, 123.3 tok/s, 26 pred
+  cycle 3: 726ms tot, 202ms ttft, 112.6 tok/s, 24 pred
+  cycle 4: 771ms tot, 205ms ttft, 114.6 tok/s, 25 pred
+  cycle 5: 946ms tot, 201ms ttft, 107.1 tok/s, 29 pred
+  cycle 6: 635ms tot, 25ms ttft, 89.5 tok/s, 24 pred
+
