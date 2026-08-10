@@ -22,6 +22,10 @@ services:
       # -md equivalent: LLAMA_ARG_SPEC_DRAFT_MODEL=<path>; --hf-repo-draft: LLAMA_ARG_SPEC_DRAFT_HF_REPO=<repo:quant>
       - LLAMA_ARG_SPEC_DRAFT_MODEL=${DRAFT_MODEL:-}
       - LLAMA_ARG_SPEC_DRAFT_HF_REPO=${DRAFT_HF_REPO:-}
+      # Thinking budget for reasoning models (Qwen): 2048 in qwen configs,
+      # -1 (unrestricted) elsewhere. Empty message = no injection.
+      - LLAMA_ARG_THINK_BUDGET=${REASONING_BUDGET:--1}
+      - LLAMA_ARG_THINK_BUDGET_MESSAGE=${REASONING_BUDGET_MESSAGE:-}
     deploy:
       resources:
         reservations:
