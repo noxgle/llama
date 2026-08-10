@@ -120,6 +120,8 @@ build_run_args() {
     -v "$ROOT/models:/models:ro"
     -v "$ROOT/slots:/slots"
     -e NVIDIA_VISIBLE_DEVICES=all
+    -e LLAMA_ARG_THINK_BUDGET="${REASONING_BUDGET:--1}"
+    -e LLAMA_ARG_THINK_BUDGET_MESSAGE="${REASONING_BUDGET_MESSAGE:-}"
     -d
   )
 
