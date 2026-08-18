@@ -52,6 +52,15 @@ This file is a critical provisioning script shared across all deployments. Chang
 ### llama.cpp b10213 status (tested 2026-08-01, then reverted)
 b10213 was fully tested on dev .38 (local `GGML_NATIVE=ON` build) and then **reverted to b10068** — text workloads showed no regression (+0.6% knowledge: 33.8 tok/s, guarded short 33.8 / long 32.8, MTP sweep ordering unchanged, batch 85.8K prefill 507 t/s), **BUT Gemma 4 E2B vision regressed: −10% gen speed (102.9 vs 114.3 tok/s) and +28% TTFT (213 vs 167 ms)** vs b10068 (07-30 run). Vision is the deciding factor — revert. Re-test after upstream fixes; b10213 image stays cached on .38.
 
+### llama.cpp b10428 status (tested 2026-08-14, then reverted — vision regression persists)
+b10428 (master @ `885c5bbe8`, 215 commits after b10213, incl. #26802 CUDA graphs for quantized MoE) was fully tested on dev .38 and then **reverted to b10068**. Results:
+- **Text: no regression.** Knowledge avg 33.8 tok/s (10/10 tasks, vs 33.6 baseline), guarded short 33.8–34.5 / long 32.8–33.3, batch 85.8K prefill 504 t/s (vs 507), CUDA graphs active (`graphs reused = N`).
+- **MTP sweep: ordering unchanged.** n_max=1 still optimal: n1 32.42 (+4.8% vs off), n2 32.26 (+4.3%), off 30.94, n3 29.01 (−6.2%, same as b10068), n4 27.36 (−11.6%).
+- **Vision E2B: FAIL.** Baseline gen **99.8 tok/s vs 114.6 control on b10068 same day/same script (−12.9%)**, TTFT 168 ms vs 167 (FIXED vs b10213's 213 ms, but gen speed still −13%). Threshold gen ≥110 tok/s not met → bump rejected (ADR-002). #26802 did NOT fix the E2B vision path (dense model, not MoE).
+- Breaking changes from b10213 confirmed unchanged on b10428: empty argv rejection (entrypoint filter works), slot API `?action=save|restore` + `filename` body (old `/slots/{id}/save` → 404), `--mmproj` as separate flag+path.
+- **`-hf repo:commit` failure is NOT a b10428 regression** — identical `common_download_get_hf_plan: no GGUF files found` on b10068 (known unsloth repo re-upload issue, see HF download bug above). Workaround `MODEL_FLAG=-m` + local file/symlink works on both.
+- b10428 image stays cached on .38. Re-test after upstream fixes the E2B generation regression.
+
 ### b10213 breaking changes (worth knowing for the next bump)
 - **Empty argv elements rejected** — `--hf-repo-draft ""`, `--no-mmproj ""` etc. now fail with `error: invalid argument:`. Compose workaround (b10068-compatible): entrypoint filters empty args; draft model via env `LLAMA_ARG_SPEC_DRAFT_MODEL` / `LLAMA_ARG_SPEC_DRAFT_HF_REPO`; mmproj as separate flag+path elements (`--mmproj` + path — the `--mmproj=/path` equals-form is ALSO rejected). See `docker-compose.yml` + commits `6ca93f4`, `45431b8`, `ff31f6b`.
 - **Slot save/restore endpoint changed:** `POST /slots/{id}?action=save|restore` (query param), old `/slots/{id}/save` → 404. Filename is relative to `--slot-save-path`. Requires the flag to be set (else 404 `File Not Found`). Wired: `SLOT_SAVE_PATH=/slots` in config → `llama.sh` passes `--slot-save-path`.
