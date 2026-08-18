@@ -13,6 +13,7 @@
 | 7 | **Qwen3.6 35B A3B MTP Q4_K_M q8_0/q8_0** (2026-07-29, `b10068` local `GGML_NATIVE=ON`) | **33.6** | **91.3%** | 24,183 | **13.2 min** | **A** | A | A | A | A | A | A | A | A | A | A |
 | 8 | **Qwen3.6 35B A3B MTP Q4_K_M q8_0/q8_0** (2026-08-01, `b10213` local `GGML_NATIVE=ON`) | **33.8** | **90.8%** | 26,089 | **13.3 min** | **A** | A | A | A | A | A | A | A | A | A | A |
 | 9 | **Qwen3.6 35B A3B MTP Q4_K_M q8_0/q8_0** (2026-08-06, `b10293` local `GGML_NATIVE=ON`) | **33.7** | **90.6%** | 30,902 | 15.2 min | **A** | A | A | A | A | A | A | A | A | A | A |
+| 10 | **Qwen3.6 35B A3B MTP Q4_K_M q8_0/q8_0** (2026-08-14, `b10428` CI build — NOT rolled out, vision FAIL) | **33.8** | **90.0%** | 23,160 | 11.8 min | **A** | A | A | A | A | A | A | A | A | A | A |
 
 <!-- Add rows from #5 upwards. Columns: Speed (tok/s), Draft% (draft accept rate), Total tok, Total time, Grade (overall), Data/.../Algo (per-task grades A-F) -->
 
@@ -309,6 +310,44 @@
 - **Batch (85.8K prompt):** prefill 507 tok/s, gen 27.6 tok/s, VRAM 5631 MiB.
 
 **Takeaway:** **b10213 is a safe upgrade** over b10068: +0.6% generation throughput, identical stability, no regressions in prefill (507 tok/s @ 85.8K). The build adds upstream fixes/features since b10068 (MTP improvements, `--no-mmproj`/draft-model arg handling changes that required compose updates — see commit history `6ca93f4`, `45431b8`, `832cf42`). Recommended for rollout to production (tag `b10213`).
+
+### #10  Qwen3.6 35B A3B MTP Q4_K_M q8_0/q8_0 KV (unlimited) — 2026-08-14 (CI build `b10428`, NOT rolled out — vision FAIL)
+
+**Config file:** `configs/qwen3.6-35ba3b-mtp-unsloth.env` (with `MODEL_FLAG=-m /models/qwen3.6-q4-k-m.gguf` local symlink)  
+**Server:** 192.168.200.38 (dev, Debian 13 trixie, Proxmox LXC)  
+**GPU:** RTX A2000 6 GB (Ampere, Tensor Cores) — 5541/6138 MiB idle (90%)  
+**Model:** `unsloth/Qwen3.6-35B-A3B-MTP-GGUF` pinned `5bc3e23` (Dynamic 2.0) via local symlink — `-hf repo:SHA` fails on BOTH b10068 and b10428 (known unsloth repo re-upload issue)  
+**Flags:** `MODEL_FLAG=-m`, `SPEC_TYPE=draft-mtp`, `SPEC_DRAFT_N_MAX=1`  
+**Build:** `b10428` (master `885c5bbe8`, CI image, `LLAMA_NATIVE=OFF` — same as prod)  
+**Cache:** `CACHE_TYPE_K=q8_0, CACHE_TYPE_V=q8_0`  
+**Context:** 143360 (140K, Q8_0 KV cache)  
+**Batch:** BATCH=3072, UBATCH=1536  
+**Threads:** THREADS=4 (LXC cpuset, verified 2026-06-26)  
+**Timeout:** 600s | **Max tokens:** unlimited
+
+| # | Task | tok/s | tokens | time | Draft% | Grade |
+|---|------|-------|--------|------|--------|-------|
+| 1 | Data Analysis | 34.8 | 1,325 | 40s | 96% | **A** |
+| 2 | Python Programming | 33.8 | 4,141 | 125s | 91% | **A** |
+| 3 | Logic Puzzle | 33.8 | 2,341 | 72s | 91% | **A** |
+| 4 | Mathematics | 34.7 | 1,441 | 44s | 97% | **A** |
+| 5 | Networking Knowledge | 32.5 | 2,389 | 76s | 83% | **A** |
+| 6 | Creative Writing | 33.9 | 2,297 | 70s | 89% | **A** |
+| 7 | Code Review | 33.9 | 3,020 | 92s | 91% | **A** |
+| 8 | SQL Query | 33.8 | 2,399 | 73s | 90% | **A** |
+| 9 | Explain Like I'm 5 | 33.3 | 1,273 | 40s | 87% | **A** |
+| 10 | Algorithm Design | 33.2 | 2,534 | 78s | 89% | **A** |
+
+**Key findings:**
+- **Text: no regression.** 33.8 tok/s avg — identical to b10213 (33.8), +0.6% over b10068 local (33.6). All 10 tasks A-grade, `finish=stop`.
+- **Draft acceptance:** 90.0% avg (vs 91.3% b10068 / 90.8% b10213) — within noise.
+- **Tokens:** 23,160 total (−4.2% vs b10068) — run-to-run variance, all tasks complete.
+- **Total time:** 11.8 min — fastest run recorded (variance).
+- **Batch (85.8K prompt):** prefill 504 t/s (vs 507), gen 27.8 tok/s (vs 27.6) — on par. CUDA graphs active (`graphs reused = N`).
+- **MTP sweep on b10428:** n_max=1 → 32.42 (+4.8% vs off), n_max=2 → 32.26, MTP off → 30.94, n_max=3 → 29.01 (−6.2%), n_max=4 → 27.36. Ordering unchanged; n_max=1 remains optimal.
+- **Vision E2B — FAIL (deciding gate, ADR-002):** baseline gen **99.8 tok/s vs 114.6 control on b10068 same day/same script (−12.9%)**, TTFT 168 vs 167 ms (TTFT fixed vs b10213's 213 ms, but gen speed still −13%). #26802 (CUDA graphs for quantized MoE) did NOT fix the dense E2B vision path.
+
+**Takeaway:** **b10428 is NOT deployed** — text is a safe upgrade (+0.6% knowledge, no prefill/MTP regression) but the vision E2B generation regression from b10213 persists (−12.9% gen, below the ≥110 tok/s gate). Per ADR-002 the vision gate decides: **revert to b10068**. Re-test after upstream fixes the E2B generation path. b10428 image stays cached on .38.
 
 ## Notes
 
