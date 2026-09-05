@@ -75,9 +75,11 @@ jobs:
             echo "llama_ref=${{ inputs.llama_ref }}" >> "$GITHUB_OUTPUT"
             echo "build_jobs=${{ inputs.build_jobs }}" >> "$GITHUB_OUTPUT"
           elif [ "${{ github.ref_type }}" = "tag" ]; then
-            # For stable* tags, use master as the llama.cpp ref (tag is just for Docker image naming)
+            # Stable tags encode the pinned llama.cpp b-tag, e.g. stable-b10665-v1.
+            # Fall back to master only for a stable tag that has no b-tag component.
             if [[ "${{ github.ref_name }}" == stable* ]]; then
-              echo "llama_ref=master" >> "$GITHUB_OUTPUT"
+              stable_ref=$(printf '%s' "${{ github.ref_name }}" | grep -oE 'b[0-9]+' | head -1 || true)
+              echo "llama_ref=${stable_ref:-master}" >> "$GITHUB_OUTPUT"
             else
               echo "llama_ref=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
             fi

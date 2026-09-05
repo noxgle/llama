@@ -31,7 +31,7 @@
 # Environment variables:
 #   LLAMA_REPO   Git repo URL (default: https://github.com/noxgle/llama.git)
 #   LLAMA_DIR    Install directory (default: /opt/llama)
-#   LLAMA_IMAGE  Docker image (default: ghcr.io/noxgle/llama-server:latest)
+#   LLAMA_IMAGE  Docker image (default: ghcr.io/noxgle/llama-server:b10665)
 
 set -euo pipefail
 
@@ -55,7 +55,7 @@ esac
 # Overridable via environment
 REPO_URL="${LLAMA_REPO:-https://github.com/noxgle/llama.git}"
 INSTALL_DIR="${LLAMA_DIR:-/opt/llama}"
-LLAMA_IMAGE="${LLAMA_IMAGE:-ghcr.io/noxgle/llama-server:b10068}"
+LLAMA_IMAGE="${LLAMA_IMAGE:-ghcr.io/noxgle/llama-server:b10665}"
 
 # Model validation
 case "$MODEL" in
@@ -266,10 +266,10 @@ info "Directory $INSTALL_DIR/models ready"
 heading "Step 6/10 — Obtain llama-server image"
 
 if [ "$BUILD_LOCAL" = true ]; then
-  info "Building from Dockerfile (LLAMA_REF=b10068, LLAMA_NATIVE=ON)..."
+  info "Building from Dockerfile (LLAMA_REF=b10665, GGML_NATIVE=ON)..."
   info "This will take 30-90 min depending on CPU."
   cd "$INSTALL_DIR"
-  if LLAMA_NATIVE=ON docker compose build 2>&1; then
+  if LLAMA_REF=b10665 LLAMA_NATIVE=ON docker compose build 2>&1; then
     info "Local build complete"
   else
     die "Local build failed — check Docker build logs"

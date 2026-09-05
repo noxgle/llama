@@ -14,6 +14,7 @@
 | 8 | **Qwen3.6 35B A3B MTP Q4_K_M q8_0/q8_0** (2026-08-01, `b10213` local `GGML_NATIVE=ON`) | **33.8** | **90.8%** | 26,089 | **13.3 min** | **A** | A | A | A | A | A | A | A | A | A | A |
 | 9 | **Qwen3.6 35B A3B MTP Q4_K_M q8_0/q8_0** (2026-08-06, `b10293` local `GGML_NATIVE=ON`) | **33.7** | **90.6%** | 30,902 | 15.2 min | **A** | A | A | A | A | A | A | A | A | A | A |
 | 10 | **Qwen3.6 35B A3B MTP Q4_K_M q8_0/q8_0** (2026-08-14, `b10428` CI build — NOT rolled out, vision FAIL) | **33.8** | **90.0%** | 23,160 | 11.8 min | **A** | A | A | A | A | A | A | A | A | A | A |
+| 11 | **Qwen3.6 35B A3B MTP Q5_K_M q8_0/q8_0** (2026-09-03, `b10665` local `GGML_NATIVE=ON`) | **29.0** | **89.6%** | 32,932 | 29.0 min | **A** | A | A | A | A | A | A | A | A | A | A |
 
 <!-- Add rows from #5 upwards. Columns: Speed (tok/s), Draft% (draft accept rate), Total tok, Total time, Grade (overall), Data/.../Algo (per-task grades A-F) -->
 
@@ -37,6 +38,19 @@
 *🏆 b10213 (2026-08-01, local build): **33.8 tok/s (+0.6%** vs b10068 local 33.6), 10/10 A, draft 90.8%. No regressions; slight token increase (24,183→26,089, +7.9%) within run-to-run variance.*
 
 ## Detailed Results
+
+---
+
+### #11 Qwen3.6 35B A3B MTP Q5_K_M q8_0/q8_0 — 2026-09-03
+
+**Config file:** `configs/qwen3.6-35ba3b-mtp-unsloth-q5.env`
+**Server:** 192.168.200.19 (Ryzen 5600X, Proxmox LXC)
+**Build:** `b10665`, locally compiled with `GGML_NATIVE=ON`
+**Runtime:** `CTX=122880`, `CACHE_RAM=3072`, `CTX_CHECKPOINTS=8`, `REASONING_BUDGET=8192`, MTP `n_max=1`
+**Result:** 10/10 A, **29.0 tok/s** average, 15,555/17,370 draft tokens accepted (**89.6%**), 32,932 tokens in 29.0 min.
+**Artifacts:** `benchmark-kb-20260903-210550.txt` and `.json`.
+
+This is the Q5 text-workload production line. It is not evidence for a Gemma 4 E2B vision upgrade; b10665 remains below the vision gate on that workload.
 
 ---
 

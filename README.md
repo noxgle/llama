@@ -109,16 +109,18 @@ This sets `GGML_NATIVE=ON`, enabling `-march=native` optimization for the host C
 Pin to a specific release tag instead of `master`:
 
 ```bash
-# Current stable (stable-b10068-v1)
+# Current stable (stable-b10665-v1)
 
+bash <(curl -fsSL https://raw.githubusercontent.com/noxgle/llama/stable-b10665-v1/deploy/install-llama.sh) qwen
+bash <(curl -fsSL https://raw.githubusercontent.com/noxgle/llama/stable-b10665-v1/deploy/install-llama.sh) gemma4
+bash <(curl -fsSL https://raw.githubusercontent.com/noxgle/llama/stable-b10665-v1/deploy/install-llama.sh) qwen-q5
+# Previous stable (stable-b10068-v1, rollback)
 bash <(curl -fsSL https://raw.githubusercontent.com/noxgle/llama/stable-b10068-v1/deploy/install-llama.sh) qwen
 bash <(curl -fsSL https://raw.githubusercontent.com/noxgle/llama/stable-b10068-v1/deploy/install-llama.sh) gemma4
 bash <(curl -fsSL https://raw.githubusercontent.com/noxgle/llama/stable-b10068-v1/deploy/install-llama.sh) qwen-q5
-# Previous stable (stable-b9770-v1, rollback)
-bash <(curl -fsSL https://raw.githubusercontent.com/noxgle/llama/stable-b9770-v1/deploy/install-llama.sh) qwen
-bash <(curl -fsSL https://raw.githubusercontent.com/noxgle/llama/stable-b9770-v1/deploy/install-llama.sh) gemma4
-bash <(curl -fsSL https://raw.githubusercontent.com/noxgle/llama/stable-b9770-v1/deploy/install-llama.sh) qwen-q5
 ```
+
+> **Vision rollback:** b10665 is approved for Qwen text/Q5 workloads. Gemma 4 E2B vision remains on `b10068` because b10665 generated 97.8 tok/s versus the 114.3 tok/s b10068 control.
 
 ### Verify
 
@@ -138,7 +140,7 @@ curl http://<server-ip>:8089/v1/chat/completions \
 | Profile | Config file | Model source | Speed | VRAM |
 |---|---|---|---|---:|
 | **Qwen3.6 Q4\_K\_M** (default) | `configs/qwen3.6-35ba3b-mtp-unsloth.env` | `-hf unsloth/...:5bc3e23` (pinned, Dynamic 2.0) | ~33 tok/s | ~5.2 GiB |
-| **Qwen3.6 Q5\_K\_M** | `configs/qwen3.6-35ba3b-mtp-unsloth-q5.env` | Local GGUF (symlink) | ~30 tok/s | ~5.3 GiB |
+| **Qwen3.6 Q5\_K\_M** | `configs/qwen3.6-35ba3b-mtp-unsloth-q5.env` | Local GGUF | ~29 tok/s | ~5.2 GiB |
 | **Gemma4 26B Q4\_K\_M + MTP** | `configs/gemma4-26b-q4-k-m-mtp.env` | Local GGUF (symlink) + draft head | ~27 tok/s | ~5.4 GiB |
 | **Gemma 4 E2B Q4\_K\_M + vision + MTP** | `configs/gemma4-e2b-q4-k-m-mtp.env` | Local GGUF + mmproj + MTP draft | ~95 tok/s | ~4.4 GiB |
 | **Gemma 4 E2B FAST v2** (camera) | `configs/gemma4-e2b-q4-k-m-mtp-fast-v2.env` | Local GGUF + mmproj + MTP draft | ~500 ms/cycle | ~4.4 GiB |
@@ -360,9 +362,9 @@ Build workflow: `.github/workflows/build.yml`
 | Trigger | Tags |
 |---|---|
 | Push to `master` | `ghcr.io/noxgle/llama-server:latest`, `:sha-<commit>` |
-| Tag `b*` or `stable*` | `ghcr.io/noxgle/llama-server:<tag>` |
+| Tag `b*` or `stable-b<version>-v*` | `ghcr.io/noxgle/llama-server:<tag>` |
 
-- Source: `ggml-org/llama.cpp.git` (default `master`, pin via `LLAMA_REF`)
+- Source: `ggml-org/llama.cpp.git` (stable default `b10665`, override with `LLAMA_REF`)
 - Build flag: `-DGGML_CUDA_NCCL=OFF` (single GPU, no libnccl)
 - **`GGML_NATIVE`:** CI builds use `GGML_NATIVE=OFF` (universal binary). For host-optimized performance, run `install-llama.sh <profile> --build-local` — this sets `GGML_NATIVE=ON` (`-march=native`), measured **+18% tok/s** on Ryzen 5600X.
 - Image is public — no authentication needed for pull
@@ -377,7 +379,7 @@ Build workflow: `.github/workflows/build.yml`
 | Config | Model | Gen speed | Prefill (45K) | VRAM | RAM |
 |---|---|---|---:|---:|---:|
 | Qwen3.6 Q4\_K\_M, q8\_0 KV, MTP | 22.7 GB | **~33 tok/s** | **~680 t/s** | 5.2 GiB | 20 GiB |
-| Qwen3.6 Q5\_K\_M, q8\_0 KV, MTP | 26 GB | **~30 tok/s** | ~630 t/s | 5.3 GiB | 25 GiB |
+| Qwen3.6 Q5\_K\_M, q8\_0 KV, MTP | 26 GB | **29.0 tok/s** | — | 5.2 GiB | 24–27 GiB |
 | Gemma4 Q4\_K\_M + MTP draft, q4\_0 KV | ~17 GB + 462 MB | **~27 tok/s** | — | 5.4 GiB | 15 GiB |
 | Gemma 4 E2B Q4\_K\_M + vision + MTP, q8\_0 KV | 3.0 GB + 940 MB + 94 MB | **~85–95 tok/s** | — | 4.4 GiB | 8 GiB |
 

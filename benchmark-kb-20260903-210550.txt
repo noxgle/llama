@@ -1,0 +1,94 @@
+==================================================
+  Knowledge Benchmark Report
+  Model: qwen3.6 (localhost:8089)
+  Date:  2026-09-03 21:34:52
+==================================================
+
+--------------------------------------------------
+  Task 1: Data Analysis (data_analysis)
+  Tokens:  98 out / 948 gen
+  Speed:   29.9 tok/s
+  Time:    96s
+  Draft:   465/483 (96%)
+  Finish:  stop
+
+--------------------------------------------------
+  Task 2: Python Programming (programming)
+  Tokens:  107 out / 4951 gen
+  Speed:   29.1 tok/s
+  Time:    282s
+  Draft:   2359/2591 (91%)
+  Finish:  stop
+
+--------------------------------------------------
+  Task 3: Logic Puzzle (logic)
+  Tokens:  106 out / 2589 gen
+  Speed:   29.1 tok/s
+  Time:    151s
+  Draft:   1234/1355 (91%)
+  Finish:  stop
+
+--------------------------------------------------
+  Task 4: Mathematics (math)
+  Tokens:  50 out / 1698 gen
+  Speed:   29.7 tok/s
+  Time:    131s
+  Draft:   828/869 (95%)
+  Finish:  stop
+
+--------------------------------------------------
+  Task 5: Networking Knowledge (knowledge)
+  Tokens:  54 out / 2884 gen
+  Speed:   28.2 tok/s
+  Time:    232s
+  Draft:   1320/1564 (84%)
+  Finish:  stop
+
+--------------------------------------------------
+  Task 6: Creative Writing (creative)
+  Tokens:  47 out / 2824 gen
+  Speed:   28.9 tok/s
+  Time:    248s
+  Draft:   1334/1489 (90%)
+  Finish:  stop
+
+--------------------------------------------------
+  Task 7: Code Review (code_review)
+  Tokens:  165 out / 4224 gen
+  Speed:   29.2 tok/s
+  Time:    146s
+  Draft:   2010/2213 (91%)
+  Finish:  stop
+
+--------------------------------------------------
+  Task 8: SQL Query (sql)
+  Tokens:  148 out / 8816 gen
+  Speed:   28.1 tok/s
+  Time:    315s
+  Draft:   4130/4685 (88%)
+  Finish:  stop
+
+--------------------------------------------------
+  Task 9: Explain Like I'm 5 (eli5)
+  Tokens:  43 out / 760 gen
+  Speed:   28.7 tok/s
+  Time:    28s
+  Draft:   355/404 (88%)
+  Finish:  stop
+
+--------------------------------------------------
+  Task 10: Algorithm Design (algorithms)
+  Tokens:  91 out / 3238 gen
+  Speed:   28.9 tok/s
+  Time:    113s
+  Draft:   1520/1717 (89%)
+  Finish:  stop
+
+==================================================
+  Summary
+==================================================
+  Tasks completed: 10/10
+  Average speed:   29.0 tok/s
+  Reports:
+    benchmark-kb-20260903-210550.txt
+    benchmark-kb-20260903-210550.json

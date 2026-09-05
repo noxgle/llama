@@ -1,5 +1,13 @@
 # Plan testów — 2026-06-29
 
+## Stable b10665 line — 2026-09-05 ✅
+- [x] Local production build on .19: `LLAMA_REF=b10665`, `GGML_NATIVE=ON`.
+- [x] Qwen3.6 Q5 knowledge suite: 10/10 tasks, **29.0 tok/s** average; draft acceptance 84–96%.
+- [x] Q5 production profile: `CACHE_RAM=3072`, `CTX_CHECKPOINTS=8`, `REASONING_BUDGET=8192`.
+- [x] .38 dev LXC stopped after the rollout.
+- [x] Create and publish `stable/2026-09-05` and `stable-b10665-v1`.
+- [!] b10665 is not approved for Gemma 4 E2B vision: 97.8 vs 114.3 tok/s on b10068. Retain b10068 for vision rollback.
+
 Wyniki websearch: llama.cpp b9837 (vs obecny b9770, ~60 release'ów dalej),
 GGML_CUDA_GRAPH_OPT (concurrent streams, +30-40% TG na 4090), SoA prefill opt,
 Unsloth Gemma4 QAT, TurboQuant fork.

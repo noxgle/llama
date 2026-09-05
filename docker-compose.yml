@@ -6,10 +6,10 @@ services:
       dockerfile: Dockerfile
       args:
         LLAMA_REPO: "${LLAMA_REPO:-https://github.com/ggml-org/llama.cpp.git}"
-        LLAMA_REF: "${LLAMA_REF:-master}"
+        LLAMA_REF: "${LLAMA_REF:-b10665}"
         LLAMA_NATIVE: "${LLAMA_NATIVE:-OFF}"
         BUILD_JOBS: "6"
-    image: ghcr.io/noxgle/llama-server:b10068
+    image: ghcr.io/noxgle/llama-server:b10665
     ports:
       - "${PORT:-8089}:${PORT:-8089}"
     volumes:
@@ -22,8 +22,7 @@ services:
       # -md equivalent: LLAMA_ARG_SPEC_DRAFT_MODEL=<path>; --hf-repo-draft: LLAMA_ARG_SPEC_DRAFT_HF_REPO=<repo:quant>
       - LLAMA_ARG_SPEC_DRAFT_MODEL=${DRAFT_MODEL:-}
       - LLAMA_ARG_SPEC_DRAFT_HF_REPO=${DRAFT_HF_REPO:-}
-      # Thinking budget for reasoning models (Qwen): 2048 in qwen configs,
-      # -1 (unrestricted) elsewhere. Empty message = no injection.
+      # Thinking budget: Qwen Q4=2048, Q5=8192; -1 elsewhere. Empty message = no injection.
       - LLAMA_ARG_THINK_BUDGET=${REASONING_BUDGET:--1}
       - LLAMA_ARG_THINK_BUDGET_MESSAGE=${REASONING_BUDGET_MESSAGE:-}
     deploy:

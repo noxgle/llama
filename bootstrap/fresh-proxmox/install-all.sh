@@ -129,7 +129,7 @@ main() {
   LXC_ENV_VARS["REPO_BRANCH"]="${REPO_BRANCH:-master}"
   LXC_ENV_VARS["ACTIVE_CONFIG"]="${ACTIVE_CONFIG:-configs/qwen3.6-35ba3b-mtp-unsloth.env}"
   LXC_ENV_VARS["LLAMA_REPO"]="${LLAMA_REPO:-https://github.com/ggml-org/llama.cpp.git}"
-  LXC_ENV_VARS["LLAMA_REF"]="${LLAMA_REF:-master}"
+  LXC_ENV_VARS["LLAMA_REF"]="${LLAMA_REF:-b10665}"
   LXC_ENV_VARS["SKIP_BUILD"]="${SKIP_BUILD:-false}"
   LXC_ENV_VARS["ENABLE_WATCHDOG"]="${ENABLE_WATCHDOG:-true}"
   LXC_ENV_VARS["ENABLE_POSTBOOT_RESTART"]="${ENABLE_POSTBOOT_RESTART:-true}"

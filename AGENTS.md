@@ -7,7 +7,7 @@
 | **Dev** | `root@192.168.200.38:/opt/llama` | RTX A2000 6 GB | Compilation, config/model testing |
 | **Prod Qwen** | `root@192.168.200.20:/opt/llama` | RTX A2000 6 GB | Qwen3.6 35B A3B MTP Q4_K_M (~33 tok/s) |
 | **Prod Gemma4** | `root@192.168.200.21:/opt/llama` | RTX A2000 6 GB | Gemma4 26B Q4_K_M MTP (~27 tok/s) |
-| **Prod Qwen Q5** | `root@192.168.200.19:/opt/llama` | RTX A2000 6 GB | Qwen3.6 35B A3B MTP Q5_K_M (~30 tok/s) |
+| **Prod Qwen Q5** | `root@192.168.200.19:/opt/llama` | RTX A2000 6 GB | Qwen3.6 35B A3B MTP Q5_K_M (b10665, 29.0 tok/s) |
 
 SOTs: `llama.sh`, `configs/*.env`, `deploy/install-llama.sh`, `.github/workflows/build.yml`, `docker-compose.yml`.
 
@@ -29,7 +29,7 @@ The `UD-*` refs were removed by unsloth on 2026-08 (repo re-uploaded as Dynamic 
 Symlink targets must be **inside the container** (`/root/.cache/huggingface/hub/...`), not on the host (`/var/lib/docker/volumes/...`). The HF cache volume mounts at `/root/.cache/huggingface`. Verify with:
 ```bash
 docker run --rm -v /opt/llama/models:/models -v llama_hf-cache:/root/.cache/huggingface \
-  --entrypoint bash ghcr.io/noxgle/llama-server:latest \
+  --entrypoint bash ghcr.io/noxgle/llama-server:b10665 \
   -c "head -c 4 /models/model.gguf | od -A x -t x1z"
 ```
 
@@ -42,6 +42,13 @@ This file is a critical provisioning script shared across all deployments. Chang
 - **Key values:** `CTX=143360` | `NGLAYERS=999` | `BATCH=3072`/`UBATCH=1536` | `CACHE_RAM=4096` | `CACHE_REUSE=256` | `CTX_CHECKPOINTS=10` | `CACHE_TYPE_K/V=q8_0` | `SPEC_TYPE=draft-mtp` | `SPEC_DRAFT_N_MAX=1` | `SLOT_SAVE_PATH=/slots`
 - **llama.cpp:** commit `b10068` (master, 2026-06-29 — beyond b9770). Previous build: `8c146a8`. b10213 tested 2026-08-01 but **deferred** — see "b10213 status" below.
 - **Baseline throughput:** ~33.6 tok/s (knowledge suite, 10/10 A, 24K tok, 13.2 min), ~32.8 tok/s (long), prefill 507 t/s @ 85.8K prompt
+
+## Stable b10665 line (2026-09-05)
+- **Stable refs:** branch `stable/2026-09-05`, tag `stable-b10665-v1`; CI extracts `b10665` from that stable tag, so the resulting GHCR image is built from the pinned llama.cpp ref rather than current `master`.
+- **Production Q5 (.19):** local `GGML_NATIVE=ON` build, `ghcr.io/noxgle/llama-server:b10665`; `CTX=122880`, `CACHE_RAM=3072`, `CTX_CHECKPOINTS=8`, `REASONING_BUDGET=8192`, `SPEC_DRAFT_N_MAX=1`.
+- **Q5 result:** knowledge suite 10/10, **29.0 tok/s** average, 84–96% draft acceptance. Runtime uses ~5.3 GiB VRAM and 24–27 GiB RAM on the 6 GB A2000 / 31 GiB LXC.
+- **Scope limit:** b10665 remains unsuitable for Gemma 4 E2B vision: 97.8 tok/s vs b10068 control 114.3 tok/s (−14.4%). Keep b10068 available as the vision rollback image.
+- **New warnings:** b10665 deprecates `--mlock` and `--no-mmap` in favor of `--load-mode`; existing flags remain functional.
 
 ### New flags added (2026-06-28)
 - `--cache-ram 4096` — prompt cache in system RAM (4 GiB). Works with all configs.
@@ -67,7 +74,7 @@ b10428 (master @ `885c5bbe8`, 215 commits after b10213, incl. #26802 CUDA graphs
 - **Slot save/restore is SLOWER than RAM prompt cache** on this setup: restore from 100 MB disk file + reprocess ≈ 5.0–5.3 s prefill vs 1.1 s with `cache_prompt=true` + `--cache-ram 4096`. Feature works but is not beneficial here.
 
 ### docker run on Docker 26 — use `--runtime=nvidia`, NOT `--gpus all`
-`llama.sh` and `scripts/benchmark-draft-mtp.sh` now use `--runtime=nvidia` (+ `NVIDIA_VISIBLE_DEVICES=all`) — `--gpus all` alone doesn't mount `libcuda.so.1` and triggers the post-reboot CPU-JIT gotcha. `llama.sh` image override: `LLAMA_IMAGE=ghcr.io/noxgle/llama-server:b10068 ./llama.sh start qwen`.
+`llama.sh` and `scripts/benchmark-draft-mtp.sh` now use `--runtime=nvidia` (+ `NVIDIA_VISIBLE_DEVICES=all`) — `--gpus all` alone doesn't mount `libcuda.so.1` and triggers the post-reboot CPU-JIT gotcha. `llama.sh` defaults to b10665; to use the vision rollback image: `LLAMA_IMAGE=ghcr.io/noxgle/llama-server:b10068 ./llama.sh start gemma4`.
 
 ### Batch tuning (RTX A2000 6 GB)
 `UBATCH` must ≈ `BATCH` (1024/256 was −39%). Optimal: **BATCH=3072, UBATCH=1536** (+88% prefill, −35% total time, ~86% VRAM). 4096/2048 works at 93% VRAM but 5120/2560 OOMs. Generation speed (~25 tok/s) is memory-bandwidth-bound, unaffected by batch size.
@@ -104,7 +111,7 @@ curl -s http://192.168.200.38:8089/health
 - Reads `.env` — copy from `configs/<name>.env` then `down && up -d`.
 
 ### `llama.sh` (docker run wrapper, testing only)
-**OK on Docker 26** since 2026-08-01 — uses `--runtime=nvidia` (+ `NVIDIA_VISIBLE_DEVICES=all`), not `--gpus all`. Image override: `LLAMA_IMAGE=ghcr.io/noxgle/llama-server:b10213`. Mounts `/opt/llama/slots → /slots` for slot save/restore; passes `--slot-save-path` when `SLOT_SAVE_PATH` is set in config.
+**OK on Docker 26** since 2026-08-01 — uses `--runtime=nvidia` (+ `NVIDIA_VISIBLE_DEVICES=all`), not `--gpus all`. Image override: `LLAMA_IMAGE=ghcr.io/noxgle/llama-server:b10665`. Mounts `/opt/llama/slots → /slots` for slot save/restore; passes `--slot-save-path` when `SLOT_SAVE_PATH` is set in config.
 ```bash
 /opt/llama/llama.sh start qwen       # reads configs/qwen3.6-35ba3b-mtp-unsloth.env
 /opt/llama/llama.sh start gemma4     # reads configs/gemma4-26b-q4-k-m-mtp.env
@@ -116,10 +123,10 @@ curl -s http://192.168.200.38:8089/health
 `/opt/llama/llama.sh start router` — loads models from `configs/router-preset.ini`. Switch via `POST /models/load {"model": "qwen-q4"}`. VRAM leak between swaps on 6 GB: `docker restart llama-router` sometimes needed.
 
 ## Build
-- Source: `ggml-org/llama.cpp.git`, pinned by `LLAMA_REF` (default `master`).
+- Source: `ggml-org/llama.cpp.git`, pinned by `LLAMA_REF` (default `b10665`).
 - `-DGGML_CUDA_NCCL=OFF` — single GPU, no libnccl.so.2 dependency.
-- **Image:** `ghcr.io/noxgle/llama-server:latest` (public, no auth to pull).
-- CI/CD: `.github/workflows/build.yml` — push to `master` or tag `b*`. Self-hosted runner via `SELF_HOSTED_RUNNER=self-hosted` repo variable.
+- **Image:** `ghcr.io/noxgle/llama-server:b10665` (public, no auth to pull). The locally built .19 image uses `GGML_NATIVE=ON`; GHCR images use `OFF`.
+- CI/CD: `.github/workflows/build.yml` — push to `master` or tag `b*` / `stable*`. A stable tag such as `stable-b10665-v1` builds its embedded b-tag. Self-hosted runner via `SELF_HOSTED_RUNNER=self-hosted` repo variable.
 - **Build flags:** Dockerfile uses `ARG LLAMA_NATIVE=OFF` (configurable). CI pulls pre-built image (LLAMA_NATIVE=OFF, no AVX2 in generated code, relies on GGML runtime dispatch). `install-llama.sh --build-local` passes `LLAMA_NATIVE=ON` → `-march=native` on target CPU. **Do NOT use `-DCMAKE_CXX_FLAGS="-march=x86-64-v3"`** — causes SIGILL on Ryzen 5600X despite CPU feature support (root cause unclear).
 - Do not modify `Dockerfile` unless explicitly asked.
 

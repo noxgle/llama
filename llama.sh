@@ -14,12 +14,12 @@
 # docker-compose.  The script translates the env vars into the
 # equivalent docker run / llama-server flags.
 #
-# Image source: ghcr.io/noxgle/llama-server:latest
+# Image source: ghcr.io/noxgle/llama-server:b10665
 
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
-IMAGE="${LLAMA_IMAGE:-ghcr.io/noxgle/llama-server:latest}"
+IMAGE="${LLAMA_IMAGE:-ghcr.io/noxgle/llama-server:b10665}"
 CONFIG_DIR="$ROOT/configs"
 
 # ------------------------------------------------------------------

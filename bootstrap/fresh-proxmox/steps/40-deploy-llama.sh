@@ -19,7 +19,7 @@ echo "=== [STEP $STEP_NAME] Deploy llama.cpp ==="
 : "${ACTIVE_CONFIG:=configs/qwen3.6-35ba3b-mtp-unsloth.env}"
 : "${APP_PORT:=8089}"
 : "${LLAMA_REPO:=https://github.com/ggml-org/llama.cpp.git}"
-: "${LLAMA_REF:=master}"
+: "${LLAMA_REF:=b10665}"
 : "${SKIP_BUILD:=false}"
 
 # ── 1. Create project directory ──

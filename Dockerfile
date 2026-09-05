@@ -6,7 +6,7 @@
 FROM nvidia/cuda:12.4.0-devel-ubuntu22.04 AS builder
 
 ARG LLAMA_REPO=https://github.com/ggml-org/llama.cpp.git
-ARG LLAMA_REF=master
+ARG LLAMA_REF=b10665
 ARG LLAMA_NATIVE=OFF
 ARG BUILD_JOBS=6
 
