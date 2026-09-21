@@ -7,7 +7,7 @@
 | **Dev** | `root@192.168.200.38:/opt/llama` | RTX A2000 6 GB | Compilation, config/model testing |
 | **Prod Qwen** | `root@192.168.200.20:/opt/llama` | RTX A2000 6 GB | Qwen3.6 35B A3B MTP Q4_K_M (~33 tok/s) |
 | **Prod Gemma4** | `root@192.168.200.21:/opt/llama` | RTX A2000 6 GB | Gemma4 26B Q4_K_M MTP (~27 tok/s) |
-| **Prod Qwen Q5** | `root@192.168.200.19:/opt/llama` | RTX A2000 6 GB | Qwen3.6 35B A3B MTP Q5_K_M (b10665, 29.0 tok/s) |
+| **Prod Tiel** | `root@192.168.200.19:/opt/llama` | RTX A2000 6 GB | Tiel-Coder 35B-A3B MTP UD-Q5_K_XL (b10665, 28.9 tok/s knowledge) |
 
 SOTs: `llama.sh`, `configs/*.env`, `deploy/install-llama.sh`, `.github/workflows/build.yml`, `docker-compose.yml`.
 
