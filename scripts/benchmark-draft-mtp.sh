@@ -111,11 +111,10 @@ run_test() {
   args+=(--threads-batch "${threads_batch:-6}")
   args+=(--parallel "${parallel:-2}")
   args+=(--poll "${poll:-50}")
-  args+=(--mlock)
+  args+=(--load-mode mlock)
   args+=(--fit off)
   args+=(-ctk "${ctk:-q4_0}")
   args+=(-ctv "${ctv:-q4_0}")
-  args+=(--no-mmap)
   args+=(--ctx-checkpoints "${ckpt:-4}")
   args+=(--no-mmproj)
 
@@ -144,6 +143,7 @@ run_test() {
     --restart no
     -p 8089:8089
     -v llama_hf-cache:/root/.cache/huggingface
+    -v /opt/llama/models:/models:ro
   )
 
   echo "  Starting container $ctn_name ..."
@@ -230,7 +230,7 @@ run_test() {
 $SSH "cp /opt/llama/.env /opt/llama/.env.backup 2>/dev/null; echo 'Backup created'"
 
 # ---- TEST 0: Baseline (SPEC_DRAFT_N_MAX=2) ----
-run_test "baseline-n2" ""
+run_test "baseline-n2" "SPEC_DRAFT_N_MAX=2"
 
 # ---- TEST A: SPEC_DRAFT_N_MAX=1 ----
 run_test "draft-n1" "SPEC_DRAFT_N_MAX=1"

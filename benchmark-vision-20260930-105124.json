@@ -1,0 +1,96 @@
+{
+  "ts": "20260930-105124",
+  "host": "root@192.168.200.38",
+  "baseline": {
+    "IMAGE_MAX_TOKENS": "128",
+    "IMAGE_MIN_TOKENS": "66",
+    "BATCH": "2048",
+    "UBATCH": "512",
+    "SPEC_DRAFT_N_MAX": "3",
+    "REASONING": "off",
+    "POLL": "0",
+    "NO_HOST": "--no-host",
+    "CTX": "16384",
+    "THREADS": "4",
+    "THREADS_BATCH": "4",
+    "CACHE_RAM": "512",
+    "MTMD_BATCH_MAX_TOKENS": "256"
+  },
+  "results": [
+    {
+      "label": "baseline",
+      "cycles": [
+        {
+          "total_s": 0.657,
+          "ttft_s": 0.14,
+          "predict_s": 0.132,
+          "tok_s": 128.95982522150746,
+          "n_pred": 18,
+          "n_prompt": 136,
+          "draft_n": 10,
+          "draft_acc": 9,
+          "text": "This is a simple image featuring a dark gray oval shape on a light pink backgrou",
+          "finish": "stop",
+          "cycle": 2
+        },
+        {
+          "total_s": 0.638,
+          "ttft_s": 0.131,
+          "predict_s": 0.129,
+          "tok_s": 124.08872343725764,
+          "n_pred": 17,
+          "n_prompt": 136,
+          "draft_n": 12,
+          "draft_acc": 9,
+          "text": "This is a solid brown, oval-shaped object on a light green background.",
+          "finish": "stop",
+          "cycle": 3
+        },
+        {
+          "total_s": 0.747,
+          "ttft_s": 0.131,
+          "predict_s": 0.179,
+          "tok_s": 111.75494375932456,
+          "n_pred": 21,
+          "n_prompt": 136,
+          "draft_n": 20,
+          "draft_acc": 11,
+          "text": "This is an image featuring a large, dark brown, oval shape centered on a light g",
+          "finish": "stop",
+          "cycle": 4
+        },
+        {
+          "total_s": 0.774,
+          "ttft_s": 0.132,
+          "predict_s": 0.259,
+          "tok_s": 100.46134942775672,
+          "n_pred": 27,
+          "n_prompt": 136,
+          "draft_n": 17,
+          "draft_acc": 12,
+          "text": "This is a solid black, oval-shaped graphic on a light purple background with the",
+          "finish": "stop",
+          "cycle": 5
+        },
+        {
+          "total_s": 0.617,
+          "ttft_s": 0.025,
+          "predict_s": 0.178,
+          "tok_s": 123.30663557844824,
+          "n_pred": 23,
+          "n_prompt": 5,
+          "draft_n": 13,
+          "draft_acc": 11,
+          "text": "This is a solid green, oval-shaped graphic with the text \"Frame 1\" centered on i",
+          "finish": "stop",
+          "cycle": 6
+        }
+      ],
+      "vram": 3083,
+      "avg_total_s": 0.6866,
+      "avg_ttft_s": 0.11180000000000001,
+      "avg_tok_s": 117.71429548485892,
+      "delta_pct": 0
+    }
+  ]
+}
