@@ -43,7 +43,17 @@ This file is a critical provisioning script shared across all deployments. Chang
 - **llama.cpp:** commit `b10068` (master, 2026-06-29 — beyond b9770). Previous build: `8c146a8`. b10213 tested 2026-08-01 but **deferred** — see "b10213 status" below.
 - **Baseline throughput:** ~33.6 tok/s (knowledge suite, 10/10 A, 24K tok, 13.2 min), ~32.8 tok/s (long), prefill 507 t/s @ 85.8K prompt
 
-## Stable b10665 line (2026-09-05)
+## Stable b11096 line (2026-10-06) — CURRENT
+- **Stable refs:** branch `stable/2026-10-01`, tag `stable-b11096-v1`; CI built `LLAMA_REF=b11096` → GHCR `:stable-b11096-v1` (`LLAMA_NATIVE=OFF`, backup/rollback image only).
+- **Production Q5 (.19) runs the LOCAL `GGML_NATIVE=ON` build** (`:b11096-native`, built on dev .38, transferred via tarball — NOT the CI image): knowledge suite 10/10 `finish=stop`, **30.7 tok/s** (+5.9% vs b10665's 29.0), draft ~91%. Runtime ~5.4 GiB VRAM. Reboot-tested 2× (systemd auto-start OK).
+- **Q4 dev results (.38):** knowledge 10/10, 34.4 tok/s (+2.4% vs b10068); prefill ~535 t/s @ 60K; MTP ordering unchanged (n1 optimal, +8.4% vs off) **BUT n_max=4 OOM-crashes** (cublas alloc fail) at CTX=143360 on 6 GB — never use n≥3 there.
+- **Vision E2B gate: PASS 117.7 tok/s** (≥110) — fixes the b10665/b10428 regression; b11096 replaces b10068 as the vision image.
+- **Breaking vs b10665:** `--mlock` and `--no-mmap` are REMOVED (were deprecated) → migrated to `--load-mode mlock` in `docker-compose.yml` + `llama.sh`.
+- **Prod management:** `.19` is driven by systemd `llama@qwen-q5` (NOT docker restart-policy — the unit runs `llama.sh start`, which stops/removes containers first). Drop-in `/etc/systemd/system/llama@qwen-q5.service.d/image.conf` pins `LLAMA_IMAGE=:b11096`; without it a reboot pulls `:b10665` default and fails. Manual starts also need `LLAMA_IMAGE` set.
+- **Rollback:** only copy of previous prod image is the b10665 tarball on dev .38 (`/root/llama-server-b10665.tar`); GHCR has NO `b10665` tag (`:latest` is untested upstream master — NEVER deploy it). Prod disk stays tight (~13 GB free) — two full images do not fit.
+- **Previous line:** b10665 refs (`stable/2026-09-05`, `stable-b10665-v1`) superseded; see "Stable b10665 line" below for history.
+
+## Stable b10665 line (2026-09-05) — SUPERSEDED by b11096 (2026-10-06)
 - **Stable refs:** branch `stable/2026-09-05`, tag `stable-b10665-v1`; CI extracts `b10665` from that stable tag, so the resulting GHCR image is built from the pinned llama.cpp ref rather than current `master`.
 - **Production Q5 (.19):** local `GGML_NATIVE=ON` build, `ghcr.io/noxgle/llama-server:b10665`; `CTX=122880`, `CACHE_RAM=3072`, `CTX_CHECKPOINTS=8`, `REASONING_BUDGET=8192`, `SPEC_DRAFT_N_MAX=1`.
 - **Q5 result:** knowledge suite 10/10, **29.0 tok/s** average, 84–96% draft acceptance. Runtime uses ~5.3 GiB VRAM and 24–27 GiB RAM on the 6 GB A2000 / 31 GiB LXC.
@@ -74,7 +84,7 @@ b10428 (master @ `885c5bbe8`, 215 commits after b10213, incl. #26802 CUDA graphs
 - **Slot save/restore is SLOWER than RAM prompt cache** on this setup: restore from 100 MB disk file + reprocess ≈ 5.0–5.3 s prefill vs 1.1 s with `cache_prompt=true` + `--cache-ram 4096`. Feature works but is not beneficial here.
 
 ### docker run on Docker 26 — use `--runtime=nvidia`, NOT `--gpus all`
-`llama.sh` and `scripts/benchmark-draft-mtp.sh` now use `--runtime=nvidia` (+ `NVIDIA_VISIBLE_DEVICES=all`) — `--gpus all` alone doesn't mount `libcuda.so.1` and triggers the post-reboot CPU-JIT gotcha. `llama.sh` defaults to b10665; to use the vision rollback image: `LLAMA_IMAGE=ghcr.io/noxgle/llama-server:b10068 ./llama.sh start gemma4`.
+`llama.sh` and `scripts/benchmark-draft-mtp.sh` now use `--runtime=nvidia` (+ `NVIDIA_VISIBLE_DEVICES=all`) — `--gpus all` alone doesn't mount `libcuda.so.1` and triggers the post-reboot CPU-JIT gotcha. `llama.sh` defaults to b10665; to use the current stable image: `LLAMA_IMAGE=ghcr.io/noxgle/llama-server:b11096 ./llama.sh start qwen` (prod `.19` pins this via the systemd drop-in).
 
 ### Batch tuning (RTX A2000 6 GB)
 `UBATCH` must ≈ `BATCH` (1024/256 was −39%). Optimal: **BATCH=3072, UBATCH=1536** (+88% prefill, −35% total time, ~86% VRAM). 4096/2048 works at 93% VRAM but 5120/2560 OOMs. Generation speed (~25 tok/s) is memory-bandwidth-bound, unaffected by batch size.
