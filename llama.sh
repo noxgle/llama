@@ -14,12 +14,14 @@
 # docker-compose.  The script translates the env vars into the
 # equivalent docker run / llama-server flags.
 #
-# Image source: ghcr.io/noxgle/llama-server:b10665
+# Image source: ghcr.io/noxgle/llama-server:stable-b11096-v1 (current stable).
+# Override per invocation: LLAMA_IMAGE=<tag> ./llama.sh start <model>.
+# NOTE: :latest tracks untested upstream master — never deploy it (see AGENTS.md).
 
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
-IMAGE="${LLAMA_IMAGE:-ghcr.io/noxgle/llama-server:b10665}"
+IMAGE="${LLAMA_IMAGE:-ghcr.io/noxgle/llama-server:stable-b11096-v1}"
 CONFIG_DIR="$ROOT/configs"
 
 # ------------------------------------------------------------------
@@ -73,17 +75,19 @@ ensure_volume() {
 }
 
 # ------------------------------------------------------------------
-# Stop and remove all known containers
+# Stop and remove all known containers (used ONLY by cmd_stop —
+# never on the start path, so a healthy container is not destroyed
+# by systemd boot / restart / start).
 # ------------------------------------------------------------------
 stop_all() {
-  # Stop all containers whose name contains "llama" (covers both old
-  # compose naming llama-llama-server-1 and new llama-qwen/gemma4)
-  for cid in $(docker ps -q --filter name=llama 2>/dev/null); do
+  # Consistent filter "llama-" (covers llama-qwen, llama-gemma4,
+  # llama-qwen-q5, llama-router and old compose llama-llama-server-1).
+  for cid in $(docker ps -q --filter name=llama- 2>/dev/null); do
     docker stop "$cid" 2>/dev/null || true
     docker rm "$cid" 2>/dev/null || true
   done
   # Also catch stopped containers
-  for cid in $(docker ps -aq --filter name=llama 2>/dev/null); do
+  for cid in $(docker ps -aq --filter name=llama- 2>/dev/null); do
     docker rm "$cid" 2>/dev/null || true
   done
 }
@@ -92,6 +96,39 @@ stop_model() {
   local name="$1"
   docker stop "$name" 2>/dev/null || true
   docker rm "$name" 2>/dev/null || true
+}
+
+# Start-path cleanup: free the port by STOPPING other llama containers
+# (no rm — their restart policy / metadata stays intact), and remove
+# ONLY the container we are about to recreate (docker --name conflict).
+stop_for_start() {
+  local container="$1"
+  for cid in $(docker ps -q --filter name=llama- 2>/dev/null); do
+    local cname
+    cname=$(docker inspect --format '{{.Name}}' "$cid" 2>/dev/null | sed 's|^/||')
+    if [ "$cname" != "$container" ]; then
+      docker stop "$cid" 2>/dev/null || true
+    fi
+  done
+  docker rm "$container" 2>/dev/null || true
+}
+
+# ------------------------------------------------------------------
+# C5 helper: version-appropriate memory-lock flags.
+# --load-mode replaced --mlock/--no-mmap (deprecated in b10665, REMOVED
+# in b11096). Old style is known-good on b10068–b10665; new style is
+# REQUIRED for b11096+. b10213/b10428 take the old path (unverified but
+# safe: old flags were only removed in b11096).
+# ------------------------------------------------------------------
+append_mem_flags() {
+  case "${IMAGE:-}" in
+    *b10068*|*b9770*|*8c146a8*|*b10213*|*b10428*)
+      LLAMA_ARGS+=(--mlock --no-mmap)
+      ;;
+    *)
+      LLAMA_ARGS+=(--load-mode mlock)
+      ;;
+  esac
 }
 
 # ------------------------------------------------------------------
@@ -139,6 +176,13 @@ build_run_args() {
     LLAMA_ARGS+=(--threads-batch "${THREADS_BATCH:-6}")
     LLAMA_ARGS+=(--parallel "${PARALLEL:-1}")
     LLAMA_ARGS+=(--poll "${POLL:-50}")
+    # M6: router mode gets the same runtime/memory flags as single-model
+    # mode (--no-mmproj avoids loading a projector for text presets).
+    append_mem_flags
+    LLAMA_ARGS+=(--fit off)
+    LLAMA_ARGS+=(--no-mmproj)
+    LLAMA_ARGS+=(--cache-ram "${CACHE_RAM:-4096}")
+    LLAMA_ARGS+=(--cache-reuse "${CACHE_REUSE:-256}")
     LLAMA_ARGS+=(--chat-template-kwargs '{"preserve_thinking": false}')
     LLAMA_ARGS+=(--threads-http "${THREADS_HTTP:-2}")
 
@@ -167,7 +211,7 @@ build_run_args() {
   LLAMA_ARGS+=(--threads-batch "${THREADS_BATCH:-6}")
   LLAMA_ARGS+=(--parallel "${PARALLEL:-2}")
   LLAMA_ARGS+=(--poll "${POLL:-50}")
-  LLAMA_ARGS+=(--load-mode mlock)
+  append_mem_flags
   LLAMA_ARGS+=(--fit off)
   LLAMA_ARGS+=(-ctk "${CACHE_TYPE_K:-q4_0}")
   LLAMA_ARGS+=(-ctv "${CACHE_TYPE_V:-q4_0}")
@@ -202,7 +246,30 @@ build_run_args() {
 }
 
 # ------------------------------------------------------------------
-# start — stop existing, pull, run
+# Wait for llama-server /health to return 200 (model load takes
+# ~60-90 s for 35B models). Returns 0 on ready, 1 on timeout.
+# ------------------------------------------------------------------
+wait_for_health() {
+  local port="$1"
+  local timeout_s="${2:-240}"
+  for ((i = 0; i < timeout_s; i += 5)); do
+    local code
+    code=$(curl -s -o /dev/null -w '%{http_code}' "http://localhost:${port}/health" 2>/dev/null || true)
+    if [ "$code" = "200" ]; then
+      echo ">>> Healthy after ~${i}s: http://localhost:${port}/health"
+      return 0
+    fi
+    if [ $((i % 30)) -eq 0 ] && [ "$i" -gt 0 ]; then
+      echo "    ... still loading (${i}s, health=${code:-unreachable})"
+    fi
+    sleep 5
+  done
+  echo "ERROR: server did not become healthy within ${timeout_s}s (last health=${code:-unreachable})" >&2
+  return 1
+}
+
+# ------------------------------------------------------------------
+# start — stop existing, pull, run (then wait for /health)
 # ------------------------------------------------------------------
 cmd_start() {
   local model="${1:-}"
@@ -210,6 +277,13 @@ cmd_start() {
     echo "Valid models: ${ALL_MODELS[*]}"
     exit 1
   fi
+
+  # C4: :latest tracks untested upstream master — loud warning.
+  case "$IMAGE" in
+    *":latest")
+      echo "WARNING: image ':latest' tracks untested upstream master — use a stable tag (e.g. :stable-b11096-v1) for production." >&2
+      ;;
+  esac
 
   local config_file="$CONFIG_DIR/${MODEL_CONFIG[$model]}"
   local container="${MODEL_CONTAINER[$model]}"
@@ -220,16 +294,34 @@ cmd_start() {
     exit 1
   fi
 
-  echo ">>> Stopping any existing llama containers..."
-  stop_all
+  # M1: fail fast if the port is already taken (all models default to 8089).
+  if (echo > "/dev/tcp/127.0.0.1/${port}") 2>/dev/null; then
+    echo "ERROR: port ${port} is already in use — stop the other model first (or check for a stray process)." >&2
+    exit 1
+  fi
+
+  echo ">>> Freeing port ${port} (stopping other containers, removing only ${container})..."
+  stop_for_start "$container"
 
   echo ">>> Ensuring HF cache volume..."
   ensure_volume
 
-  # Pull only if image not cached locally (supports local dev images too)
+  # Pull only if image not cached locally (supports local dev images too).
+  # M4: fail loudly if the pull fails (e.g. unknown tag → 404) instead of
+  # running docker run against a missing image.
   if ! docker image inspect "$IMAGE" &>/dev/null; then
     echo ">>> Pulling $IMAGE ..."
-    docker pull "$IMAGE" 2>&1 | tail -3
+    local pull_out
+    if ! pull_out=$(docker pull "$IMAGE" 2>&1); then
+      echo "$pull_out" | tail -5 >&2
+      echo "ERROR: failed to pull $IMAGE — check the tag exists and the registry is reachable." >&2
+      exit 1
+    fi
+    echo "$pull_out" | tail -2
+    docker image inspect "$IMAGE" &>/dev/null || {
+      echo "ERROR: image $IMAGE still missing after pull." >&2
+      exit 1
+    }
   else
     echo ">>> Using cached image $IMAGE"
   fi
@@ -239,10 +331,12 @@ cmd_start() {
 
   docker run "${DOCKER_ARGS[@]}" "$IMAGE" "${LLAMA_ARGS[@]}"
 
-  echo ">>> Container $container started."
-
+  echo ">>> Container $container created."
   echo "    Health: http://localhost:$port/health"
   echo "    Logs:   $(basename "$0") logs $model"
+
+  # C3: do not declare success until the server actually serves.
+  wait_for_health "$port" 240
 }
 
 # ------------------------------------------------------------------
@@ -255,9 +349,19 @@ cmd_stop() {
 }
 
 # ------------------------------------------------------------------
-# restart
+# restart — stop ONLY this model, then start (unlike the old behavior
+# which wiped every llama container via stop_all).
+# Stopping first also frees the port for cmd_start's M1 port check.
 # ------------------------------------------------------------------
 cmd_restart() {
+  local model="${1:-}"
+  if [ -z "$model" ] || [ -z "${MODEL_CONTAINER[$model]:-}" ]; then
+    echo "Valid models: ${ALL_MODELS[*]}"
+    exit 1
+  fi
+  echo ">>> Restarting $model (stopping only ${MODEL_CONTAINER[$model]})..."
+  stop_model "${MODEL_CONTAINER[$model]}"
+  sleep 2
   cmd_start "$@"
 }
 
@@ -265,10 +369,10 @@ cmd_restart() {
 # status
 # ------------------------------------------------------------------
 cmd_status() {
-  docker ps --filter name=llama- --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+  docker ps --filter name=llama- --format "table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}"
   echo ""
   echo "Containers (including stopped):"
-  docker ps -a --filter name=llama- --format "table {{.Names}}\t{{.Status}}" 2>/dev/null
+  docker ps -a --filter name=llama- --format "table {{.Names}}\t{{.Image}}\t{{.Status}}" 2>/dev/null
 }
 
 # ------------------------------------------------------------------

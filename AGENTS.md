@@ -49,7 +49,7 @@ This file is a critical provisioning script shared across all deployments. Chang
 - **Q4 dev results (.38):** knowledge 10/10, 34.4 tok/s (+2.4% vs b10068); prefill ~535 t/s @ 60K; MTP ordering unchanged (n1 optimal, +8.4% vs off) **BUT n_max=4 OOM-crashes** (cublas alloc fail) at CTX=143360 on 6 GB — never use n≥3 there.
 - **Vision E2B gate: PASS 117.7 tok/s** (≥110) — fixes the b10665/b10428 regression; b11096 replaces b10068 as the vision image.
 - **Breaking vs b10665:** `--mlock` and `--no-mmap` are REMOVED (were deprecated) → migrated to `--load-mode mlock` in `docker-compose.yml` + `llama.sh`.
-- **Prod management:** `.19` is driven by systemd `llama@qwen-q5` (NOT docker restart-policy — the unit runs `llama.sh start`, which stops/removes containers first). Drop-in `/etc/systemd/system/llama@qwen-q5.service.d/image.conf` pins `LLAMA_IMAGE=:b11096`; without it a reboot pulls `:b10665` default and fails. Manual starts also need `LLAMA_IMAGE` set.
+- **Prod management:** `.19` is driven by systemd `llama@qwen-q5` (NOT docker restart-policy — the unit runs `llama.sh start`). Drop-in `/etc/systemd/system/llama@qwen-q5.service.d/image.conf` pins `LLAMA_IMAGE=:b11096` (local native build); without it a reboot falls back to the `:stable-b11096-v1` default (CI build — works, ~2% slower). `start` only stops (not removes) other containers and waits for `/health`; `restart` touches only the target model.
 - **Rollback:** only copy of previous prod image is the b10665 tarball on dev .38 (`/root/llama-server-b10665.tar`); GHCR has NO `b10665` tag (`:latest` is untested upstream master — NEVER deploy it). Prod disk stays tight (~13 GB free) — two full images do not fit.
 - **Previous line:** b10665 refs (`stable/2026-09-05`, `stable-b10665-v1`) superseded; see "Stable b10665 line" below for history.
 
@@ -84,7 +84,7 @@ b10428 (master @ `885c5bbe8`, 215 commits after b10213, incl. #26802 CUDA graphs
 - **Slot save/restore is SLOWER than RAM prompt cache** on this setup: restore from 100 MB disk file + reprocess ≈ 5.0–5.3 s prefill vs 1.1 s with `cache_prompt=true` + `--cache-ram 4096`. Feature works but is not beneficial here.
 
 ### docker run on Docker 26 — use `--runtime=nvidia`, NOT `--gpus all`
-`llama.sh` and `scripts/benchmark-draft-mtp.sh` now use `--runtime=nvidia` (+ `NVIDIA_VISIBLE_DEVICES=all`) — `--gpus all` alone doesn't mount `libcuda.so.1` and triggers the post-reboot CPU-JIT gotcha. `llama.sh` defaults to b10665; to use the current stable image: `LLAMA_IMAGE=ghcr.io/noxgle/llama-server:b11096 ./llama.sh start qwen` (prod `.19` pins this via the systemd drop-in).
+`llama.sh` and `scripts/benchmark-draft-mtp.sh` now use `--runtime=nvidia` (+ `NVIDIA_VISIBLE_DEVICES=all`) — `--gpus all` alone doesn't mount `libcuda.so.1` and triggers the post-reboot CPU-JIT gotcha. `llama.sh` defaults to `:stable-b11096-v1`; override per invocation (`LLAMA_IMAGE=... ./llama.sh start qwen`, prod `.19` pins `:b11096` via the systemd drop-in). `:latest` prints a warning (untested master).
 
 ### Batch tuning (RTX A2000 6 GB)
 `UBATCH` must ≈ `BATCH` (1024/256 was −39%). Optimal: **BATCH=3072, UBATCH=1536** (+88% prefill, −35% total time, ~86% VRAM). 4096/2048 works at 93% VRAM but 5120/2560 OOMs. Generation speed (~25 tok/s) is memory-bandwidth-bound, unaffected by batch size.
@@ -121,7 +121,7 @@ curl -s http://192.168.200.38:8089/health
 - Reads `.env` — copy from `configs/<name>.env` then `down && up -d`.
 
 ### `llama.sh` (docker run wrapper, testing only)
-**OK on Docker 26** since 2026-08-01 — uses `--runtime=nvidia` (+ `NVIDIA_VISIBLE_DEVICES=all`), not `--gpus all`. Image override: `LLAMA_IMAGE=ghcr.io/noxgle/llama-server:b10665`. Mounts `/opt/llama/slots → /slots` for slot save/restore; passes `--slot-save-path` when `SLOT_SAVE_PATH` is set in config.
+**OK on Docker 26** since 2026-08-01 — uses `--runtime=nvidia` (+ `NVIDIA_VISIBLE_DEVICES=all`), not `--gpus all`. Image override: `LLAMA_IMAGE=ghcr.io/noxgle/llama-server:b11096`. Mounts `/opt/llama/slots → /slots` for slot save/restore; passes `--slot-save-path` when `SLOT_SAVE_PATH` is set in config. `start` waits for `/health` (fails loudly on timeout), checks the port first, and only removes the target container (others are stopped, not deleted); memory flags adapt to the image version (`--load-mode mlock` except known-old b-tags, which get `--mlock`/`--no-mmap`); `status` shows image versions.
 ```bash
 /opt/llama/llama.sh start qwen       # reads configs/qwen3.6-35ba3b-mtp-unsloth.env
 /opt/llama/llama.sh start gemma4     # reads configs/gemma4-26b-q4-k-m-mtp.env
