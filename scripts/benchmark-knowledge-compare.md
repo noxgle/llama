@@ -18,6 +18,7 @@
 | 12 | **Qwen3.6 35B A3B MTP Q4_K_M q8_0/q8_0** (2026-11-06, `b11096` local — same-day A/B baseline) | 31.3 | 90.5% | 20,343 | 11.2 min | **A** | A | A | A | A | A | A | A | A | A | A |
 | 13 | **Qwen3.6 35B A3B MTP Q4_K_M q8_0/q8_0** (2026-11-06, `b12167` local `GGML_NATIVE=ON` — **approved**) | **31.7** | 89.6% | 22,713 | 12.3 min | **A** | A | A | A | A | A | A | A | A | A | A |
 | 14 | **Qwen3.6 35B A3B MTP Q5_K_M q8_0/q8_0** (2026-11-06, `b12167` local, prod `.19` — **deployed**) | 30.8 | 89.7% | 28,471 | 15.8 min | **A** | A | A | A | A | A | A | A | A | A | A |
+| 15 | **Qwen3.6 35B A3B MTP Q5_K_M q8_0/q8_0** (2026-11-06, `b12167` prod `.19`, **after reboot**) | 29.5 | 89.4% | 31,039 | 18.0 min | **A** | A | A | A | A | A | A | A | A | A | A |
 
 <!-- Add rows from #5 upwards. Columns: Speed (tok/s), Draft% (draft accept rate), Total tok, Total time, Grade (overall), Data/.../Algo (per-task grades A-F) -->
 
@@ -41,6 +42,19 @@
 *🏆 b10213 (2026-08-01, local build): **33.8 tok/s (+0.6%** vs b10068 local 33.6), 10/10 A, draft 90.8%. No regressions; slight token increase (24,183→26,089, +7.9%) within run-to-run variance.*
 
 ## Detailed Results
+
+---
+
+### #15 Qwen3.6 35B A3B MTP Q5_K_M q8_0/q8_0 — 2026-11-06 (`b12167` prod `.19`, after reboot)
+
+**Config file:** `configs/qwen3.6-35ba3b-mtp-unsloth-q5.env` (prod copy)
+**Server:** 192.168.200.19 (prod, Ryzen 5600X, Proxmox LXC)
+**Build:** `b12167` local `GGML_NATIVE=ON` (`:b12167-native`, ID `51a50915265b`), same image as #14
+**Runtime:** identical to #14; server args verified byte-for-byte against the previous `llama.sh`
+**Result:** 10/10 `finish=stop`, **29.5 tok/s** average, 14,652/16,381 draft tokens accepted (**89.4%**), 31,039 tokens in 18.0 min, 0 `sched_graph_realloc`.
+**Artifacts:** `benchmark-kb-20261106-173806.txt` and `.json`.
+
+Same build and flags as #14, measured after the 2026-11-06 reboot: **29.5 vs 30.8 tok/s (−4.2%)**. The GPU stays in P2 (SM 1200 MHz, mem 5701 of max 6001 MHz); `nvidia-smi -lgc/-lmc` are accepted inside the LXC but the memory clock does not move (SM lock raises temperature to 73 °C with no gain). Treated as environment, not a build regression — dev same-day A/B (#12/#13) remains the build comparison. No rollback.
 
 ---
 

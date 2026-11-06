@@ -12,6 +12,7 @@
 - [x] Prod Q5 validation: knowledge **30.8 tok/s** (b11096: 30.7), 10/10 `finish=stop`, draft 89.7%, 0 `sched_graph_realloc`; VRAM 5343 MiB.
 - [x] `llama.sh` default → `:stable-b12167-v1` (CI run 42231133205 green, `LLAMA_REF=b12167`, digest `sha256:44d29800…`); `docker-compose.yml` defaults bumped too.
 - [x] `.19` runs current `llama.sh` (md5 `6cd54cf…`), drop-in `timeout.conf` `TimeoutStartSec=300`; boot test 2026-11-06 passed (health 200 after ~80 s, unit `active`, VRAM 5293 MiB).
+- [x] Post-reboot Q5 suite: 10/10 `stop`, **29.5 tok/s** (vs 30.8 pre-reboot); same flags → treated as GPU P2/environment (GPU mem clock 5701 of 6001, not lockable in LXC). Accepted, no rollback.
 - [ ] `.38` dev LXC can be stopped (image transfer complete; currently powered off / unreachable).
 
 ## Stable b10665 line — 2026-09-05 ✅
