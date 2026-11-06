@@ -294,14 +294,17 @@ cmd_start() {
     exit 1
   fi
 
-  # M1: fail fast if the port is already taken (all models default to 8089).
-  if (echo > "/dev/tcp/127.0.0.1/${port}") 2>/dev/null; then
-    echo "ERROR: port ${port} is already in use — stop the other model first (or check for a stray process)." >&2
-    exit 1
-  fi
-
+  # M1: free the port first, then fail fast if something foreign still holds it.
+  # The port check MUST run after stop_for_start — on boot Docker recreates the
+  # container from its restart policy before systemd runs ExecStart, so checking
+  # first would make the unit fail on every reboot.
   echo ">>> Freeing port ${port} (stopping other containers, removing only ${container})..."
   stop_for_start "$container"
+
+  if (echo > "/dev/tcp/127.0.0.1/${port}") 2>/dev/null; then
+    echo "ERROR: port ${port} is still in use after stopping llama containers — check for a stray process." >&2
+    exit 1
+  fi
 
   echo ">>> Ensuring HF cache volume..."
   ensure_volume
