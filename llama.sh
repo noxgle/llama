@@ -14,14 +14,14 @@
 # docker-compose.  The script translates the env vars into the
 # equivalent docker run / llama-server flags.
 #
-# Image source: ghcr.io/noxgle/llama-server:stable-b11096-v1 (current stable).
+# Image source: ghcr.io/noxgle/llama-server:stable-b12167-v1 (current stable).
 # Override per invocation: LLAMA_IMAGE=<tag> ./llama.sh start <model>.
 # NOTE: :latest tracks untested upstream master — never deploy it (see AGENTS.md).
 
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
-IMAGE="${LLAMA_IMAGE:-ghcr.io/noxgle/llama-server:stable-b11096-v1}"
+IMAGE="${LLAMA_IMAGE:-ghcr.io/noxgle/llama-server:stable-b12167-v1}"
 CONFIG_DIR="$ROOT/configs"
 
 # ------------------------------------------------------------------
@@ -281,7 +281,7 @@ cmd_start() {
   # C4: :latest tracks untested upstream master — loud warning.
   case "$IMAGE" in
     *":latest")
-      echo "WARNING: image ':latest' tracks untested upstream master — use a stable tag (e.g. :stable-b11096-v1) for production." >&2
+      echo "WARNING: image ':latest' tracks untested upstream master — use a stable tag (e.g. :stable-b12167-v1) for production." >&2
       ;;
   esac
 

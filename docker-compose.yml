@@ -6,10 +6,10 @@ services:
       dockerfile: Dockerfile
       args:
         LLAMA_REPO: "${LLAMA_REPO:-https://github.com/ggml-org/llama.cpp.git}"
-        LLAMA_REF: "${LLAMA_REF:-b10665}"
+        LLAMA_REF: "${LLAMA_REF:-b12167}"
         LLAMA_NATIVE: "${LLAMA_NATIVE:-OFF}"
         BUILD_JOBS: "6"
-    image: ${LLAMA_IMAGE:-ghcr.io/noxgle/llama-server:b10665}
+    image: ${LLAMA_IMAGE:-ghcr.io/noxgle/llama-server:stable-b12167-v1}
     ports:
       - "${PORT:-8089}:${PORT:-8089}"
     volumes:

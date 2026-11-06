@@ -10,8 +10,8 @@
 - [x] Publish `stable/2026-11-06` + `stable-b12167-v1`.
 - [x] Prod `.19`: transfer native image (`docker save | docker load`, ID `51a50915265b`), Q5 config merged (prod tuning `CACHE_RAM=8192`/`CTX_CHECKPOINTS=10` kept), drop-in → `:b12167-native`, restart, health 200.
 - [x] Prod Q5 validation: knowledge **30.8 tok/s** (b11096: 30.7), 10/10 `finish=stop`, draft 89.7%, 0 `sched_graph_realloc`; VRAM 5343 MiB.
-- [ ] `llama.sh` default → `:stable-b12167-v1` after CI image verified (CI build still running as of 2026-11-06 15:30).
-- [ ] `.38` dev LXC can be stopped (image transfer complete).
+- [x] `llama.sh` default → `:stable-b12167-v1` (CI run 42231133205 green, `LLAMA_REF=b12167`, digest `sha256:44d29800…`); `docker-compose.yml` defaults bumped too.
+- [ ] `.38` dev LXC can be stopped (image transfer complete; currently powered off / unreachable).
 
 ## Stable b10665 line — 2026-09-05 ✅
 - [x] Local production build on .19: `LLAMA_REF=b10665`, `GGML_NATIVE=ON`.
