@@ -1,0 +1,29 @@
+[
+  {
+    "variant": "n1",
+    "spec_type": "draft-mtp",
+    "n_max": 1,
+    "vram_mib": 5601,
+    "gen_tps": 31.06,
+    "prompt_tps": 58.9,
+    "draft_pct": 87.1,
+    "runs": [
+      {
+        "gen_tps": 31.07,
+        "prompt_tps": 59.2,
+        "draft_n": 266,
+        "draft_acc": 232,
+        "draft_pct": 87.2,
+        "predicted_n": 500
+      },
+      {
+        "gen_tps": 31.05,
+        "prompt_tps": 58.6,
+        "draft_n": 267,
+        "draft_acc": 232,
+        "draft_pct": 86.9,
+        "predicted_n": 500
+      }
+    ]
+  }
+]

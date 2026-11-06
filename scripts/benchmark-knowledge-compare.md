@@ -15,6 +15,8 @@
 | 9 | **Qwen3.6 35B A3B MTP Q4_K_M q8_0/q8_0** (2026-08-06, `b10293` local `GGML_NATIVE=ON`) | **33.7** | **90.6%** | 30,902 | 15.2 min | **A** | A | A | A | A | A | A | A | A | A | A |
 | 10 | **Qwen3.6 35B A3B MTP Q4_K_M q8_0/q8_0** (2026-08-14, `b10428` CI build — NOT rolled out, vision FAIL) | **33.8** | **90.0%** | 23,160 | 11.8 min | **A** | A | A | A | A | A | A | A | A | A | A |
 | 11 | **Qwen3.6 35B A3B MTP Q5_K_M q8_0/q8_0** (2026-09-03, `b10665` local `GGML_NATIVE=ON`) | **29.0** | **89.6%** | 32,932 | 29.0 min | **A** | A | A | A | A | A | A | A | A | A | A |
+| 12 | **Qwen3.6 35B A3B MTP Q4_K_M q8_0/q8_0** (2026-11-06, `b11096` local — same-day A/B baseline) | 31.3 | 90.5% | 20,343 | 11.2 min | **A** | A | A | A | A | A | A | A | A | A | A |
+| 13 | **Qwen3.6 35B A3B MTP Q4_K_M q8_0/q8_0** (2026-11-06, `b12167` local `GGML_NATIVE=ON` — **approved**) | **31.7** | 89.6% | 22,713 | 12.3 min | **A** | A | A | A | A | A | A | A | A | A | A |
 
 <!-- Add rows from #5 upwards. Columns: Speed (tok/s), Draft% (draft accept rate), Total tok, Total time, Grade (overall), Data/.../Algo (per-task grades A-F) -->
 
@@ -38,6 +40,32 @@
 *🏆 b10213 (2026-08-01, local build): **33.8 tok/s (+0.6%** vs b10068 local 33.6), 10/10 A, draft 90.8%. No regressions; slight token increase (24,183→26,089, +7.9%) within run-to-run variance.*
 
 ## Detailed Results
+
+---
+
+### #13 Qwen3.6 35B A3B MTP Q4_K_M q8_0/q8_0 — 2026-11-06 (`b12167` local, approved)
+
+**Config file:** `configs/qwen3.6-35ba3b-mtp-unsloth.env` (temporarily `MODEL_FLAG=-m /models/qwen3.6-q4-k-m.gguf`)
+**Server:** 192.168.200.38 (dev, 4 CPUs, 30 GB RAM)
+**Build:** `b12167`, locally compiled with `GGML_NATIVE=ON` (image `:b12167-native`)
+**Runtime:** `CTX=143360`, `CACHE_RAM=4096`, `CTX_CHECKPOINTS=10`, `REASONING_BUDGET=2048`, MTP `n_max=1`
+**Result:** 10/10 A, **31.7 tok/s** average, 89.6% draft acceptance, 22,713 tokens in 12.3 min.
+**Artifacts:** `benchmark-kb-20261106-140856.txt` and `.json`.
+
+Same-day A/B against `b11096` (#12) gives **+1.3%** and is the valid comparison — the historical 34.4 tok/s (2026-10-06) was host drift, not a build difference. Server prefill on this build is much faster: 746/724/619 t/s at 4.5K/18K/64K vs 631/614/541 on b11096 (+18%/+18%/+14.5%). MTP sweep n1 +7.8% vs off (n2 +1.2%), soak flat (no #31392 leak), vision E2B 114.4 tok/s / 76–90 ms TTFT.
+
+---
+
+### #12 Qwen3.6 35B A3B MTP Q4_K_M q8_0/q8_0 — 2026-11-06 (`b11096` local, same-day baseline)
+
+**Config file:** `configs/qwen3.6-35ba3b-mtp-unsloth.env` (temporarily `MODEL_FLAG=-m /models/qwen3.6-q4-k-m.gguf`)
+**Server:** 192.168.200.38 (dev, 4 CPUs, 30 GB RAM)
+**Build:** `b11096`, locally compiled with `GGML_NATIVE=ON` (image `:b11096-native`)
+**Runtime:** identical config to #13.
+**Result:** 10/10 A, **31.3 tok/s** average, 90.5% draft acceptance, 20,343 tokens in 11.2 min.
+**Artifacts:** `benchmark-kb-20261106-144516.txt` and `.json`.
+
+Re-run specifically to separate build effects from environment drift: b12167 scored 31.7 tok/s in the same session, so the old 34.4 tok/s figure is not a usable baseline today.
 
 ---
 

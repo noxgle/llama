@@ -43,7 +43,19 @@ This file is a critical provisioning script shared across all deployments. Chang
 - **llama.cpp:** commit `b10068` (master, 2026-06-29 — beyond b9770). Previous build: `8c146a8`. b10213 tested 2026-08-01 but **deferred** — see "b10213 status" below.
 - **Baseline throughput:** ~33.6 tok/s (knowledge suite, 10/10 A, 24K tok, 13.2 min), ~32.8 tok/s (long), prefill 507 t/s @ 85.8K prompt
 
-## Stable b11096 line (2026-10-06) — CURRENT
+## Stable b12167 line (2026-11-06) — CURRENT
+- **Stable refs:** branch `stable/2026-11-06`, tag `stable-b12167-v1`; CI builds `:stable-b12167-v1` from the b-tag embedded in the stable tag (`LLAMA_NATIVE=OFF` — backup/rollback image only).
+- **Why this build:** first line after b11096 with the Gemma4 graph optimizations (#31356, huge E2B/E4B prefill gain) and the Gemma4 image-resize fix (#30922), plus ref-counted checkpoints (#30137), quantized-KV state fixes (#30541) and MTP conv snapshots (#31660). **No CLI flags removed** between b11096 and b12167.
+- **Dev test 2026-11-06 (.38, `:b12167-native`, same-day A/B vs `:b11096-native`):**
+  - knowledge suite 10/10 A: **31.7 tok/s vs 31.3** (+1.3%). The historical 34.4 figure is **not** a valid baseline — re-running b11096 the same day gives 31.3 (host drift).
+  - server prefill (`cache_prompt=false`): **746 / 724 / 619 t/s** at 4.5K / 18K / 64K vs 631 / 614 / 541 on b11096 (**+18% / +18% / +14.5%**).
+  - MTP sweep: n1 optimal **+7.8% vs off**; n2 +1.2% — ordering unchanged. `n_max>=3` still OOM-unsafe at CTX=143360 on 6 GB.
+  - soak 40 requests × ~4.5K prompt: anon 2475→3461 MiB once, then flat; gen stable 32.5–33.1 t/s → **no #31392 leak** in this config.
+  - vision E2B: **114.4 tok/s gen, TTFT 76–90 ms**, 3029 MiB (b11096: 117.7 tok/s / 167 ms — gen within noise, TTFT ~−50%).
+- **Rollout:** prod `.19` stays on `:b11096` (systemd drop-in) until the native b12167 image is transferred. `llama.sh` default remains `:stable-b11096-v1` for now; use `LLAMA_IMAGE=ghcr.io/noxgle/llama-server:b12167-native` (local) or `:stable-b12167-v1` (CI) explicitly.
+- **Known open items:** #31302 (MTP+mmproj graph reallocation after an image) and #31392 (draft-mtp RSS growth) are still open upstream; #31392 did not reproduce in our soak.
+
+## Stable b11096 line (2026-10-06) — SUPERSEDED by b12167 (2026-11-06)
 - **Stable refs:** branch `stable/2026-10-01`, tag `stable-b11096-v1`; CI built `LLAMA_REF=b11096` → GHCR `:stable-b11096-v1` (`LLAMA_NATIVE=OFF`, backup/rollback image only).
 - **Production Q5 (.19) runs the LOCAL `GGML_NATIVE=ON` build** (`:b11096-native`, built on dev .38, transferred via tarball — NOT the CI image): knowledge suite 10/10 `finish=stop`, **30.7 tok/s** (+5.9% vs b10665's 29.0), draft ~91%. Runtime ~5.4 GiB VRAM. Reboot-tested 2× (systemd auto-start OK).
 - **Q4 dev results (.38):** knowledge 10/10, 34.4 tok/s (+2.4% vs b10068); prefill ~535 t/s @ 60K; MTP ordering unchanged (n1 optimal, +8.4% vs off) **BUT n_max=4 OOM-crashes** (cublas alloc fail) at CTX=143360 on 6 GB — never use n≥3 there.

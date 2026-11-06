@@ -37,6 +37,8 @@ REMOTE_DIR = "/opt/llama"
 TIMEOUT = 60  # per request
 WARMUP = 1
 CYCLES = 5
+# Optional image override (compose reads ${LLAMA_IMAGE:-b10665}).
+IMAGE = os.environ.get("IMAGE", os.environ.get("LLAMA_IMAGE", ""))
 TS = datetime.now().strftime("%Y%m%d-%H%M%S")
 OUT_TXT = f"benchmark-vision-{TS}.txt"
 OUT_JSON = f"benchmark-vision-{TS}.json"
@@ -73,10 +75,11 @@ def ssh(cmd):
 
 
 def set_env(key, val):
-    """Set key=val in .env via sed."""
+    """Set key=val in .env (append if missing)."""
     k = key.replace("/", r"\/")
-    v = str(val).replace("/", r"\/")
-    ssh(f"sed -i 's/^{k}=.*/{k}={v}/' .env")
+    v_sed = str(val).replace("/", r"\/")
+    ssh(f"if grep -q '^{k}=' .env; then sed -i 's/^{k}=.*/{k}={v_sed}/' .env; "
+        f"else printf '%s\\n' '{key}={val}' >> .env; fi")
 
 
 def restart():
@@ -209,6 +212,8 @@ if FILTER:
 def apply_config(changes: dict):
     """Copy baseline config + apply overrides. Then restart."""
     ssh("cp configs/gemma4-e2b-q4-k-m-mtp-fast-v2.env .env")
+    if IMAGE:
+        set_env("LLAMA_IMAGE", IMAGE)
     for k, v in BASELINE.items():
         set_env(k, v)
     for k, v in changes.items():

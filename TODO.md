@@ -1,5 +1,16 @@
 # Plan testów — 2026-06-29
 
+## Stable b12167 line — 2026-11-06 ✅ (approved; prod rollout pending)
+- [x] Local `GGML_NATIVE=ON` build on .38 (`LLAMA_REF=b12167`), image `:b12167-native`, 9.14 GB.
+- [x] Knowledge A/B same day: b12167 **31.7 tok/s** vs b11096 **31.3** (+1.3%), 10/10 A-grade. Historical 34.4 = host drift.
+- [x] Server prefill 4.5K/18K/64K: **746/724/619 t/s** vs 631/614/541 (**+18%/+18%/+14.5%**).
+- [x] MTP sweep: n1 **+7.8%** vs off, n2 +1.2% → n1 optimal unchanged; n≥3 nadal OOM przy CTX=143360.
+- [x] Soak 40×~4.5K: anon 2475→3461 MiB raz, potem flat → **brak wycieku #31392**.
+- [x] Vision E2B: **114.4 tok/s, TTFT 76–90 ms** (b11096: 117.7 / 167 ms) → gate PASS (≥110).
+- [x] Publish `stable/2026-11-06` + `stable-b12167-v1`.
+- [ ] Prod `.19`: transfer native image + switch systemd drop-in (pending).
+- [ ] `llama.sh` default → `:stable-b12167-v1` after CI image verified.
+
 ## Stable b10665 line — 2026-09-05 ✅
 - [x] Local production build on .19: `LLAMA_REF=b10665`, `GGML_NATIVE=ON`.
 - [x] Qwen3.6 Q5 knowledge suite: 10/10 tasks, **29.0 tok/s** average; draft acceptance 84–96%.

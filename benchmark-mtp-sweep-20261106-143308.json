@@ -1,0 +1,83 @@
+[
+  {
+    "variant": "off",
+    "spec_type": "off",
+    "n_max": 0,
+    "vram_mib": 4621,
+    "gen_tps": 29.12,
+    "prompt_tps": 65.7,
+    "draft_pct": 0.0,
+    "runs": [
+      {
+        "gen_tps": 29.11,
+        "prompt_tps": 65.6,
+        "draft_n": 0,
+        "draft_acc": 0,
+        "draft_pct": 0,
+        "predicted_n": 500
+      },
+      {
+        "gen_tps": 29.12,
+        "prompt_tps": 65.7,
+        "draft_n": 0,
+        "draft_acc": 0,
+        "draft_pct": 0,
+        "predicted_n": 500
+      }
+    ]
+  },
+  {
+    "variant": "n1",
+    "spec_type": "draft-mtp",
+    "n_max": 1,
+    "vram_mib": 5537,
+    "gen_tps": 31.38,
+    "prompt_tps": 62.7,
+    "draft_pct": 85.7,
+    "runs": [
+      {
+        "gen_tps": 31.68,
+        "prompt_tps": 62.4,
+        "draft_n": 266,
+        "draft_acc": 232,
+        "draft_pct": 87.2,
+        "predicted_n": 500
+      },
+      {
+        "gen_tps": 31.09,
+        "prompt_tps": 63.0,
+        "draft_n": 271,
+        "draft_acc": 228,
+        "draft_pct": 84.1,
+        "predicted_n": 500
+      }
+    ]
+  },
+  {
+    "variant": "n2",
+    "spec_type": "draft-mtp",
+    "n_max": 2,
+    "vram_mib": 5601,
+    "gen_tps": 29.48,
+    "prompt_tps": 62.6,
+    "draft_pct": 69.8,
+    "runs": [
+      {
+        "gen_tps": 29.99,
+        "prompt_tps": 62.4,
+        "draft_n": 410,
+        "draft_acc": 294,
+        "draft_pct": 71.7,
+        "predicted_n": 500
+      },
+      {
+        "gen_tps": 28.97,
+        "prompt_tps": 62.8,
+        "draft_n": 423,
+        "draft_acc": 287,
+        "draft_pct": 67.8,
+        "predicted_n": 500
+      }
+    ]
+  }
+]

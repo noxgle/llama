@@ -1,0 +1,50 @@
+[
+  {
+    "target_tokens": 6000,
+    "prompt_n": 4540,
+    "prompt_tps": 630.6,
+    "prompt_ms": 7199.9,
+    "predicted_tps": 0.0,
+    "runs": [
+      {
+        "elapsed_s": 8.15,
+        "prompt_n": 4540,
+        "prompt_ms": 7199.9,
+        "prompt_tps": 630.6,
+        "predicted_tps": 0.0
+      }
+    ]
+  },
+  {
+    "target_tokens": 24000,
+    "prompt_n": 18163,
+    "prompt_tps": 613.9,
+    "prompt_ms": 29586.5,
+    "predicted_tps": 0.0,
+    "runs": [
+      {
+        "elapsed_s": 30.6,
+        "prompt_n": 18163,
+        "prompt_ms": 29586.5,
+        "prompt_tps": 613.9,
+        "predicted_tps": 0.0
+      }
+    ]
+  },
+  {
+    "target_tokens": 85000,
+    "prompt_n": 64459,
+    "prompt_tps": 540.5,
+    "prompt_ms": 119264.5,
+    "predicted_tps": 0.0,
+    "runs": [
+      {
+        "elapsed_s": 120.42,
+        "prompt_n": 64459,
+        "prompt_ms": 119264.5,
+        "prompt_tps": 540.5,
+        "predicted_tps": 0.0
+      }
+    ]
+  }
+]

@@ -1,0 +1,96 @@
+{
+  "ts": "20261106-144249",
+  "host": "root@192.168.200.38",
+  "baseline": {
+    "IMAGE_MAX_TOKENS": "128",
+    "IMAGE_MIN_TOKENS": "66",
+    "BATCH": "2048",
+    "UBATCH": "512",
+    "SPEC_DRAFT_N_MAX": "3",
+    "REASONING": "off",
+    "POLL": "0",
+    "NO_HOST": "--no-host",
+    "CTX": "16384",
+    "THREADS": "4",
+    "THREADS_BATCH": "4",
+    "CACHE_RAM": "512",
+    "MTMD_BATCH_MAX_TOKENS": "256"
+  },
+  "results": [
+    {
+      "label": "baseline",
+      "cycles": [
+        {
+          "total_s": 0.636,
+          "ttft_s": 0.092,
+          "predict_s": 0.174,
+          "tok_s": 126.28581925055107,
+          "n_pred": 23,
+          "n_prompt": 136,
+          "draft_n": 16,
+          "draft_acc": 11,
+          "text": "This is a solid green, oval-shaped graphic with the text \"Frame 2\" centered on i",
+          "finish": "stop",
+          "cycle": 2
+        },
+        {
+          "total_s": 0.647,
+          "ttft_s": 0.09,
+          "predict_s": 0.203,
+          "tok_s": 113.03266644060135,
+          "n_pred": 24,
+          "n_prompt": 136,
+          "draft_n": 18,
+          "draft_acc": 11,
+          "text": "This is a solid, dark reddish-brown oval shape with the text \"Frame 3\" in the ce",
+          "finish": "stop",
+          "cycle": 3
+        },
+        {
+          "total_s": 0.631,
+          "ttft_s": 0.09,
+          "predict_s": 0.192,
+          "tok_s": 109.63366693291985,
+          "n_pred": 22,
+          "n_prompt": 136,
+          "draft_n": 19,
+          "draft_acc": 9,
+          "text": "This is an image of a solid, dark brown, oval shape on a light blue-gray backgro",
+          "finish": "stop",
+          "cycle": 4
+        },
+        {
+          "total_s": 0.588,
+          "ttft_s": 0.09,
+          "predict_s": 0.153,
+          "tok_s": 111.4607920272751,
+          "n_pred": 18,
+          "n_prompt": 136,
+          "draft_n": 13,
+          "draft_acc": 7,
+          "text": "This is a solid, deep purple or maroon circular shape on a light pink background",
+          "finish": "stop",
+          "cycle": 5
+        },
+        {
+          "total_s": 0.594,
+          "ttft_s": 0.017,
+          "predict_s": 0.224,
+          "tok_s": 111.67045601747421,
+          "n_pred": 26,
+          "n_prompt": 5,
+          "draft_n": 24,
+          "draft_acc": 12,
+          "text": "This is an image of a solid, dark brown, oval shape with the text \"Frame 1\" cent",
+          "finish": "stop",
+          "cycle": 6
+        }
+      ],
+      "vram": 3029,
+      "avg_total_s": 0.6192,
+      "avg_ttft_s": 0.0758,
+      "avg_tok_s": 114.41668013376432,
+      "delta_pct": 0
+    }
+  ]
+}

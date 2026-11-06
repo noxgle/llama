@@ -1,0 +1,11 @@
+==================================================================
+  MTP Draft-n Sweep (llama.sh, server probe)
+  Host: root@192.168.200.38  image: ghcr.io/noxgle/llama-server:b11096-native
+  Date: 2026-11-06 14:59:06
+==================================================================
+
+   variant  n_max   gen_t/s    pp_t/s   draft%   vs off    VRAM
+  --------------------------------------------------------------
+        n1      1     31.06        59     87.1        -    5601
+
+  Best variant: n1 (31.06 gen t/s)

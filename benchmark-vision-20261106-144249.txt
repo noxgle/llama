@@ -1,0 +1,17 @@
+=================================================================
+  Gemma 4 E2B Vision Benchmark
+  Host: root@192.168.200.38:8089  Date: 2026-11-06 14:43:41
+=================================================================
+
+Test                            Cycle     TTFT    tok/s    tok%    VRAM
+------------------------------------------------------------------
+baseline                        619ms     76ms   114.4       — 3029MiB
+
+--- baseline ---
+  VRAM: 3029 MiB
+  cycle 2: 636ms tot, 92ms ttft, 126.3 tok/s, 23 pred
+  cycle 3: 647ms tot, 90ms ttft, 113.0 tok/s, 24 pred
+  cycle 4: 631ms tot, 90ms ttft, 109.6 tok/s, 22 pred
+  cycle 5: 588ms tot, 90ms ttft, 111.5 tok/s, 18 pred
+  cycle 6: 594ms tot, 17ms ttft, 111.7 tok/s, 26 pred
+
