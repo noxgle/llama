@@ -17,6 +17,7 @@
 | 11 | **Qwen3.6 35B A3B MTP Q5_K_M q8_0/q8_0** (2026-09-03, `b10665` local `GGML_NATIVE=ON`) | **29.0** | **89.6%** | 32,932 | 29.0 min | **A** | A | A | A | A | A | A | A | A | A | A |
 | 12 | **Qwen3.6 35B A3B MTP Q4_K_M q8_0/q8_0** (2026-11-06, `b11096` local — same-day A/B baseline) | 31.3 | 90.5% | 20,343 | 11.2 min | **A** | A | A | A | A | A | A | A | A | A | A |
 | 13 | **Qwen3.6 35B A3B MTP Q4_K_M q8_0/q8_0** (2026-11-06, `b12167` local `GGML_NATIVE=ON` — **approved**) | **31.7** | 89.6% | 22,713 | 12.3 min | **A** | A | A | A | A | A | A | A | A | A | A |
+| 14 | **Qwen3.6 35B A3B MTP Q5_K_M q8_0/q8_0** (2026-11-06, `b12167` local, prod `.19` — **deployed**) | 30.8 | 89.7% | 28,471 | 15.8 min | **A** | A | A | A | A | A | A | A | A | A | A |
 
 <!-- Add rows from #5 upwards. Columns: Speed (tok/s), Draft% (draft accept rate), Total tok, Total time, Grade (overall), Data/.../Algo (per-task grades A-F) -->
 
@@ -40,6 +41,21 @@
 *🏆 b10213 (2026-08-01, local build): **33.8 tok/s (+0.6%** vs b10068 local 33.6), 10/10 A, draft 90.8%. No regressions; slight token increase (24,183→26,089, +7.9%) within run-to-run variance.*
 
 ## Detailed Results
+
+---
+
+### #14 Qwen3.6 35B A3B MTP Q5_K_M q8_0/q8_0 — 2026-11-06 (`b12167` prod `.19`, deployed)
+
+**Config file:** `configs/qwen3.6-35ba3b-mtp-unsloth-q5.env` (prod copy: `CACHE_RAM=8192`, `CTX_CHECKPOINTS=10`, dead `MMAP_FLAG` removed)
+**Server:** 192.168.200.19 (prod, Ryzen 5600X, Proxmox LXC)
+**Build:** `b12167`, locally compiled with `GGML_NATIVE=ON` (image `:b12167-native`, ID `51a50915265b`), transferred from dev `.38`
+**Runtime:** `CTX=122880`, `CACHE_RAM=8192`, `CTX_CHECKPOINTS=10`, `REASONING_BUDGET=8192`, MTP `n_max=1`, `MODEL=/models/qwen-q5-k-m.gguf`
+**Result:** 10/10 `finish=stop`, **30.8 tok/s** average, 13,461/15,003 draft tokens accepted (**89.7%**), 28,471 tokens in 15.8 min, **0 `sched_graph_realloc`**. VRAM 5343 MiB, RAM 26.7 GiB.
+**Artifacts:** `benchmark-kb-20261106-160429.txt` and `.json`.
+
+Post-deploy validation of the b12167 line on the Q5 production profile: **30.8 tok/s vs 30.7 on b11096** (#11 was b10665 at 29.0) — no regression from the build bump, plus the prefill gains measured on dev. Per-task grades carried from #11 (same model/tasks/config, build-only change); every task terminated with `finish=stop`.
+
+Quick probe before the suite: ~29.9 tok/s, draft ~83%, 0 reallocs. Old `.19` `llama.sh` does not wait for `/health` → the container returns 503 for ~90 s after restart while the 27 GB Q5 model loads.
 
 ---
 
